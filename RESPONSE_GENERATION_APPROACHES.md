@@ -268,6 +268,164 @@ Consider **Cloud Functions** if:
 - Want hands-off operation
 - Budget allows
 
+## Ranking for Non-Technical User Operation
+
+Given that the system will be built by Leo for Han Tianshi (non-technical marketing PhD) to operate at Peking University, here's the revised ranking:
+
+### Best Options for Non-Technical Users (1 = Best)
+
+1. **Google Sheets + Apps Script**
+   - ✅ Familiar spreadsheet interface
+   - ✅ Works well with VPN
+   - ✅ Easy collaboration
+   - ✅ Visual data management
+   
+2. **Jupyter Notebook + Export to Sheets**
+   - ✅ Leo runs technical parts
+   - ✅ Outputs to familiar format
+   - ✅ Clear documentation possible
+   - ⚠️ Requires Leo's involvement
+   
+3. **Simple Web Dashboard**
+   - ✅ One-click operations
+   - ✅ Visual interface
+   - ⚠️ Hosting considerations in China
+   - ⚠️ More development time
+
+4. **Airtable + Automation**
+   - ✅ Better than Sheets for data
+   - ⚠️ May have access issues in China
+   - ⚠️ Learning curve
+
+5. **No-Code Platform**
+   - ⚠️ Many blocked in China
+   - ❌ Expensive
+   - ❌ Reliability concerns
+
+6. **Python Script + Cron**
+   - ❌ Too technical for end user
+   - ❌ No UI for Han Tianshi
+
+7. **Cloud Functions**
+   - ❌ Too complex
+   - ❌ Many services blocked in China
+
+### Detailed Implementation Steps for Top 3 Approaches
+
+#### 1. Google Sheets + Apps Script (RECOMMENDED)
+
+**Setup Steps:**
+1. Create Google Sheets workbook with tabs:
+   - User Management (assign groups)
+   - Response Queue (pending responses)
+   - Response History (completed)
+   - Analytics Dashboard
+
+2. Build Apps Script functions:
+   - Connect to AI API (via VPN if needed)
+   - Generate responses based on group rules
+   - Schedule checks for new posts
+   - Log all interactions
+
+3. Create simple menu interface:
+   - "Generate Today's Responses" button
+   - "Review Pending" button
+   - "Send Approved Responses" button
+   - "View Analytics" button
+
+4. Set up automated triggers:
+   - Check for new posts 3x weekly
+   - Generate response suggestions
+   - Email Han Tianshi for review
+
+**What Han Tianshi Sees:**
+- Clean spreadsheet interface
+- Color-coded status indicators
+- Simple approve/reject buttons
+- Clear analytics charts
+
+#### 2. Jupyter Notebook with Export
+
+**Setup Steps:**
+1. Create master notebook with sections:
+   - Data loading
+   - Response generation
+   - Quality checks
+   - Export to CSV/Sheets
+
+2. Build wrapper functions:
+   ```python
+   def generate_weekly_responses():
+       # All technical logic hidden
+       return formatted_dataframe
+   ```
+
+3. Create execution schedule:
+   - Leo runs notebook Mon/Wed/Fri
+   - Generates Excel file with responses
+   - Uploads to shared folder
+
+4. Output format:
+   - Excel with approval columns
+   - Clear instructions per row
+   - Summary statistics
+
+**What Han Tianshi Sees:**
+- Excel file in shared folder
+- Clear columns for review
+- Simple approve/reject marking
+- Summary reports
+
+#### 3. Simple Web Dashboard
+
+**Setup Steps:**
+1. Build using Streamlit/Gradio (works in China):
+   - User authentication
+   - Response generation page
+   - Review/approval interface
+   - Analytics dashboard
+
+2. Deploy on university server:
+   - Avoid external hosting issues
+   - Direct database access
+   - Reliable connectivity
+
+3. Create intuitive UI:
+   - Big buttons for main actions
+   - Traffic light status indicators
+   - Drag-drop for bulk operations
+   - Export functionality
+
+4. Add safety features:
+   - Confirmation dialogs
+   - Undo functionality
+   - Activity logging
+   - Backup systems
+
+**What Han Tianshi Sees:**
+- Web page with login
+- Dashboard with pending tasks
+- Click button to generate responses
+- Click to approve/send
+- View results in real-time
+
+### Special Considerations for China Environment
+
+1. **VPN Dependencies:**
+   - Google services require VPN
+   - OpenAI/Anthropic APIs need VPN
+   - Plan for VPN failures
+
+2. **Alternative Services:**
+   - Consider Chinese AI services (Baidu, Alibaba)
+   - Use university infrastructure when possible
+   - Have offline backup plans
+
+3. **Data Storage:**
+   - Keep backups on university servers
+   - Use multiple storage locations
+   - Regular exports to local files
+
 ## Next Steps
 
 1. Choose initial approach based on team capabilities

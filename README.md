@@ -2,9 +2,10 @@
 
 ## Research Team
 
-- **Lead Investigator**: Professor Shen Qiaowei
+- **Institution**: Peking University (Beijing, China)
+- **Advising Professor**: Professor Shen Qiaowei
 - **PhD Student**: Han Tianshi  
-- **Research Assistant**: Leo Jiang
+- **Engineer**: Leo Jiang
 
 ## Project Overview
 
