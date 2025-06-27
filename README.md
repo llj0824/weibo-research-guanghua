@@ -52,44 +52,44 @@ This research project investigates the differential effects of AI identity discl
 #### 1. `user_list_20250623.xlsx`
 Contains comprehensive user metadata with the following columns:
 
-| Column | Description |
-|--------|-------------|
-| user_searched_words | Randomly generated keyword used to find user |
-| user_name | Weibo username (nickname) |
-| user_id | Unique Weibo user ID |
-| user_link | User profile URL |
-| user_description | User bio/self-description |
-| user_followings_cnt | Number of accounts user follows |
-| user_followers_cnt | Number of followers |
-| user_gender | Gender (male/female) |
-| user_location | Registered location |
-| user_register_date | Weibo registration date |
-| user_total_cnt_likes_comments_reposts | Total engagement (as of 2025-05-31) |
-| user_verified | Verification status (True/False) |
-| user_verified_tag | Verification label (e.g., "Celebrity") |
-| user_vip_type | VIP membership status |
-| post_count_2025-05-23_to_2025-05-31 | Original posts in sampling period |
+| Column | Description | Example/Type |
+|--------|-------------|--------------|
+| user_searched_words | Randomly generated keyword used to find user | "美食" (string) |
+| user_name | Weibo username (nickname) | "小明的日常" (string) |
+| user_id | Unique Weibo user ID | "1234567890" (string/numeric) |
+| user_link | User profile URL | "https://weibo.com/u/1234567890" |
+| user_description | User bio/self-description | "爱生活，爱美食" (string, can be empty) |
+| user_followings_cnt | Number of accounts user follows | 156 (integer, range: 0-10000+) |
+| user_followers_cnt | Number of followers | 2341 (integer, range: 0-1M+) |
+| user_gender | Gender (male/female) | "男" or "女" (string) |
+| user_location | Registered location | "北京" (string, can be empty) |
+| user_register_date | Weibo registration date | "2015-03-20" (date) |
+| user_total_cnt_likes_comments_reposts | Total engagement (as of 2025-05-31) | 15234 (integer) |
+| user_verified | Verification status (True/False) | False (boolean) |
+| user_verified_tag | Verification label (e.g., "Celebrity") | "" (empty if not verified) |
+| user_vip_type | VIP membership status | "普通用户" (string) |
+| post_count_2025-05-23_to_2025-05-31 | Original posts in sampling period | 3 (integer, range: 1-20) |
 
 #### 2. `posting_history_bf0531.xlsx`
 Historical posting data before May 31, 2025, containing:
 
-| Column | Description |
-|--------|-------------|
-| user_id | Unique user identifier |
-| post_id | Unique post ID |
-| post_link | Public URL to post |
-| post_publish_time | Timestamp (to the second) |
-| post_content | Text content (including emojis, hashtags) |
-| post_geo | Geographic location (if available) |
-| post_likes_cnt | Number of likes |
-| post_comments_cnt | Number of comments |
-| post_reposts_cnt | Number of reposts |
-| post_pic_num | Number of attached images |
-| post_pics | List of image URLs |
-| post_video_url | Video URL (if any) |
-| post_topic_names | Hashtags used (e.g., #WinterOlympics#) |
-| post_topic_num | Total number of hashtags |
-| post_topic_urls | Links to topic pages |
+| Column | Description | Example/Type |
+|--------|-------------|--------------|
+| user_id | Unique user identifier | "1234567890" (string) |
+| post_id | Unique post ID | "4901234567890123" (string) |
+| post_link | Public URL to post | "https://weibo.com/1234567890/N1a2b3c4d" |
+| post_publish_time | Timestamp (to the second) | "2025-05-15 14:30:25" (datetime) |
+| post_content | Text content (including emojis, hashtags) | "今天天气真好！😊 #北京生活#" (string) |
+| post_geo | Geographic location (if available) | "北京市朝阳区" (string, often empty) |
+| post_likes_cnt | Number of likes | 45 (integer, range: 0-10000+) |
+| post_comments_cnt | Number of comments | 12 (integer, range: 0-1000+) |
+| post_reposts_cnt | Number of reposts | 3 (integer, range: 0-1000+) |
+| post_pic_num | Number of attached images | 2 (integer, range: 0-9) |
+| post_pics | List of image URLs | ["https://pic.weibo.com/...", "..."] (list) |
+| post_video_url | Video URL (if any) | "https://video.weibo.com/..." (string, often empty) |
+| post_topic_names | Hashtags used (e.g., #WinterOlympics#) | ["北京生活", "美食分享"] (list) |
+| post_topic_num | Total number of hashtags | 2 (integer, range: 0-10) |
+| post_topic_urls | Links to topic pages | ["https://s.weibo.com/...", "..."] (list) |
 
 #### 3. `posting_history_af0531.xlsx`
 Recent posting data (May 31 - June 15, 2025) with identical structure to above. This data is specifically collected to test the effectiveness of context-aware commenting prompts.
