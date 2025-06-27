@@ -100,7 +100,8 @@ D: last_updated
 E: notes
 ```
 
-Initial prompts:
+Initial prompts: 
+Note to self: i'll use gpt 4.5 or deepseek to make these prompts in chinese.
 ```
 Row 2: Group1 | Human-roleplay, no context
 "You are a friendly Weibo user. Reply to this post naturally: {post_content}"
@@ -151,7 +152,7 @@ Summary statistics (will auto-calculate):
 2. Click on Project Settings (gear icon)
 3. Add Script Property:
    - Property: `DEEPSEEK_API_KEY`
-   - Value: `your-api-key-here`
+   - Value: `sk-5d7ba189b92c4ffd967c48a9c8607c82`
 
 ### Step 3: Create Apps Script Code
 @AppScript.js
