@@ -1,0 +1,61 @@
+
+```html
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+      }
+      .setting {
+        margin: 15px 0;
+      }
+      button {
+        background: #4285f4;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+      button:hover {
+        background: #357ae8;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>System Settings</h3>
+    
+    <div class="setting">
+      <label>Deepseek Model:</label><br>
+      <select id="model">
+        <option value="deepseek-chat">Deepseek Chat (Default)</option>
+        <option value="deepseek-coder">Deepseek Coder</option>
+      </select>
+    </div>
+    
+    <div class="setting">
+      <label>Response Temperature (0.0 - 1.0):</label><br>
+      <input type="number" id="temperature" min="0" max="1" step="0.1" value="0.7">
+    </div>
+    
+    <div class="setting">
+      <label>Max Response Length:</label><br>
+      <input type="number" id="maxTokens" min="50" max="500" value="150">
+    </div>
+    
+    <button onclick="saveSettings()">Save Settings</button>
+    <button onclick="google.script.host.close()">Close</button>
+    
+    <script>
+      function saveSettings() {
+        // Implementation for saving settings
+        alert('Settings saved!');
+        google.script.host.close();
+      }
+    </script>
+  </body>
+</html>
+```

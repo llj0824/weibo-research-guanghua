@@ -1,8 +1,60 @@
 # Google Sheets + Deepseek API Implementation Guide
 
+## Workflow Overview (What Han Tianshi Will See)
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Weibo AI Experiment - Response System            │
+├─────────────────────────────────────────────────────────────────────┤
+│ 🤖 Response System ▼                                                │
+│  ├─ 📝 Generate Responses for Selected Users                       │
+│  ├─ 🔄 Generate All Pending Responses                              │
+│  ├─ ✅ Approve All Responses                                       │
+│  └─ 📊 Update Analytics                                            │
+└─────────────────────────────────────────────────────────────────────┘
+
+Tab 1: Users (226 users divided into 4 groups)
+┌────────────┬─────────────┬────────┬─────────────────────────────────┐
+│  user_id   │  user_name  │ group  │    user_link    │ followers  │
+├────────────┼─────────────┼────────┼─────────────────────────────────┤
+│ 1234567890 │ 小明的日常   │ Group1 │ weibo.com/...   │    2,341   │
+│ 2345678901 │ 美食爱好者   │ Group1 │ weibo.com/...   │    5,123   │
+│    ...     │     ...     │  ...   │      ...        │     ...    │
+│ [Row 57]   │     ...     │ Group1 │      ...        │     ...    │
+│ [Row 58]   │     ...     │ Group2 │      ...        │     ...    │
+│    ...     │     ...     │  ...   │      ...        │     ...    │
+└────────────┴─────────────┴────────┴─────────────────────────────────┘
+
+Tab 2: Prompts (EDITABLE BY HAN TIANSHI)
+┌────────┬──────────────────────────────────────────────────────────┐
+│ group  │                    prompt_template                        │
+├────────┼──────────────────────────────────────────────────────────┤
+│ Group1 │ You are a friendly Weibo user. Reply to: {post_content} │
+│ Group2 │ You know their interests in {user_topics}. Reply to...  │
+│ Group3 │ I am an AI assistant. I'd like to respond to...         │
+│ Group4 │ I am an AI. I've noticed you post about {user_topics}...│
+└────────┴──────────────────────────────────────────────────────────┘
+         ↑ Han Tianshi can edit these prompts anytime!
+
+Tab 3: Response Queue (After clicking "Generate Responses")
+┌────────────┬────────────┬─────────────────────┬──────────┬─────────┐
+│ timestamp  │ user_name  │   post_content      │ response │ approved│
+├────────────┼────────────┼─────────────────────┼──────────┼─────────┤
+│ 2025-06-27 │ 小明的日常  │ 今天天气真好！🌞      │ 天气确实..│   NO    │
+│ 2025-06-27 │ 美食爱好者  │ 刚做了红烧肉，香！    │ 看起来... │   NO    │
+└────────────┴────────────┴─────────────────────┴──────────┴─────────┘
+                                                              ↑ Change to YES/NO/EDIT
+
+Daily Workflow:
+1. Click "🔄 Generate All Pending Responses"
+2. Review responses in Response Queue
+3. Change "approved" to YES for good responses
+4. Click "📊 Update Analytics" to see progress
+```
+
 ## Overview
 
-This guide provides step-by-step instructions for building a response generation system using Google Sheets and Deepseek API. The system will handle all 226 users across 5 experimental groups with editable prompts.
+This guide provides step-by-step instructions for building a response generation system using Google Sheets and Deepseek API. The system will handle all 226 users across 4 experimental groups with editable prompts.
 
 ## Phase 1: MVP (Days 1-3)
 
@@ -28,11 +80,15 @@ F: user_followers_cnt
 G: last_response_date
 H: response_count
 I: status (active/inactive)
+
+user_id	user_name	group	user_link	user_description	user_followers_cnt	last_response_date	response_count	status
 ```
 
-Import all 226 users from `user_list_20250623.xlsx` and randomly assign to groups:
-- Control: ~45 users (no responses)
-- Group 1-4: ~45 users each
+Import all 226 users from `user_list_20250623.xlsx` and assign to groups sequentially:
+- Group1: Rows 2-57 (56 users)
+- Group2: Rows 58-113 (56 users)
+- Group3: Rows 114-170 (57 users)
+- Group4: Rows 171-227 (57 users)
 
 #### 1.3 Sheet 2: "Prompts" Tab
 Create editable prompt templates:
@@ -42,6 +98,9 @@ B: prompt_template
 C: system_prompt
 D: last_updated
 E: notes
+
+user_id	user_name	group	user_link	user_description	user_followers_cnt	last_response_date	response_count	status
+
 ```
 
 Initial prompts:
@@ -98,197 +157,7 @@ Summary statistics (will auto-calculate):
    - Value: `your-api-key-here`
 
 ### Step 3: Create Apps Script Code
-
-#### 3.1 Main Code Structure
-In Apps Script editor, replace default code with:
-
-```javascript
-// Configuration
-const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
-const MODEL = 'deepseek-chat';
-
-// Get API Key from Script Properties
-function getApiKey() {
-  return PropertiesService.getScriptProperties().getProperty('DEEPSEEK_API_KEY');
-}
-
-// Main menu
-function onOpen() {
-  const ui = SpreadsheetApp.getUi();
-  ui.createMenu('🤖 Response System')
-    .addItem('📝 Generate Responses for Selected Users', 'generateResponsesForSelected')
-    .addItem('🔄 Generate All Pending Responses', 'generateAllResponses')
-    .addItem('✅ Approve All Responses', 'approveAllResponses')
-    .addItem('📊 Update Analytics', 'updateAnalytics')
-    .addSeparator()
-    .addItem('⚙️ Settings', 'showSettings')
-    .addToUi();
-}
-
-// Generate response using Deepseek
-function callDeepseekAPI(prompt, systemPrompt = '') {
-  const apiKey = getApiKey();
-  
-  const payload = {
-    model: MODEL,
-    messages: [
-      {
-        role: 'system',
-        content: systemPrompt || 'You are a helpful assistant responding in Chinese.'
-      },
-      {
-        role: 'user',
-        content: prompt
-      }
-    ],
-    temperature: 0.7,
-    max_tokens: 150
-  };
-  
-  const options = {
-    method: 'post',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
-    },
-    payload: JSON.stringify(payload),
-    muteHttpExceptions: true
-  };
-  
-  try {
-    const response = UrlFetchApp.fetch(DEEPSEEK_API_URL, options);
-    const result = JSON.parse(response.getContentText());
-    
-    if (result.choices && result.choices[0]) {
-      return result.choices[0].message.content;
-    } else {
-      throw new Error('Invalid API response');
-    }
-  } catch (error) {
-    console.error('Deepseek API Error:', error);
-    return `Error: ${error.toString()}`;
-  }
-}
-
-// Generate responses for selected users
-function generateResponsesForSelected() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet();
-  const usersSheet = sheet.getSheetByName('Users');
-  const promptsSheet = sheet.getSheetByName('Prompts');
-  const queueSheet = sheet.getSheetByName('Response Queue');
-  
-  // Get selected range
-  const range = usersSheet.getActiveRange();
-  const selectedData = range.getValues();
-  
-  // Get prompts
-  const prompts = {};
-  const promptData = promptsSheet.getDataRange().getValues();
-  for (let i = 1; i < promptData.length; i++) {
-    prompts[promptData[i][0]] = {
-      template: promptData[i][1],
-      system: promptData[i][2]
-    };
-  }
-  
-  // Sample post content (in real implementation, fetch from Weibo)
-  const samplePost = "今天天气真好，出去散步了一圈，心情特别愉快！🌞";
-  
-  let responsesGenerated = 0;
-  
-  // Process each selected user
-  selectedData.forEach(row => {
-    const userId = row[0];
-    const userName = row[1];
-    const group = row[2];
-    
-    if (group === 'Control') return; // Skip control group
-    
-    const promptConfig = prompts[group];
-    if (!promptConfig) return;
-    
-    // Generate response
-    const prompt = promptConfig.template
-      .replace('{post_content}', samplePost)
-      .replace('{user_topics}', '生活、旅行'); // Sample topics
-    
-    const response = callDeepseekAPI(prompt, promptConfig.system);
-    
-    // Add to queue
-    const timestamp = new Date();
-    queueSheet.appendRow([
-      timestamp,
-      userId,
-      userName,
-      group,
-      'sample_post_id',
-      samplePost,
-      response,
-      'NO', // Not approved yet
-      '', // Final response (empty)
-      '', // Sent date (empty)
-      promptConfig.template
-    ]);
-    
-    responsesGenerated++;
-  });
-  
-  SpreadsheetApp.getUi().alert(`✅ Generated ${responsesGenerated} responses!`);
-}
-
-// Show settings dialog
-function showSettings() {
-  const html = HtmlService.createHtmlOutputFromFile('Settings')
-    .setWidth(400)
-    .setHeight(300);
-  SpreadsheetApp.getUi().showModalDialog(html, 'Settings');
-}
-
-// Update analytics
-function updateAnalytics() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet();
-  const queueSheet = sheet.getSheetByName('Response Queue');
-  const analyticsSheet = sheet.getSheetByName('Analytics');
-  
-  const data = queueSheet.getDataRange().getValues();
-  
-  // Calculate statistics
-  let stats = {
-    total: data.length - 1,
-    approved: 0,
-    sent: 0,
-    byGroup: {}
-  };
-  
-  for (let i = 1; i < data.length; i++) {
-    const group = data[i][3];
-    const approved = data[i][7];
-    const sentDate = data[i][9];
-    
-    if (!stats.byGroup[group]) stats.byGroup[group] = 0;
-    stats.byGroup[group]++;
-    
-    if (approved === 'YES') stats.approved++;
-    if (sentDate) stats.sent++;
-  }
-  
-  // Update analytics sheet
-  analyticsSheet.clear();
-  analyticsSheet.getRange(1, 1).setValue('Analytics Dashboard');
-  analyticsSheet.getRange(2, 1).setValue('Last Updated: ' + new Date());
-  
-  let row = 4;
-  analyticsSheet.getRange(row++, 1).setValue('Total Responses: ' + stats.total);
-  analyticsSheet.getRange(row++, 1).setValue('Approved: ' + stats.approved);
-  analyticsSheet.getRange(row++, 1).setValue('Sent: ' + stats.sent);
-  
-  row++;
-  analyticsSheet.getRange(row++, 1).setValue('By Group:');
-  for (let group in stats.byGroup) {
-    analyticsSheet.getRange(row++, 1).setValue(group + ': ' + stats.byGroup[group]);
-  }
-}
-```
+@AppScript.js
 
 #### 3.2 Create Settings HTML
 Create new HTML file in Apps Script (File → New → HTML) named "Settings":
@@ -356,10 +225,37 @@ Create new HTML file in Apps Script (File → New → HTML) named "Settings":
 
 ### Step 4: Initial Setup & Testing
 
-#### 4.1 Import User Data
-1. Copy data from `user_list_20250623.xlsx`
-2. Paste into "Users" sheet
-3. Add group assignments (use random formula or manual assignment)
+#### 4.1 Import User Data and Assign Groups
+
+**Step 1: Copy Column Headers (paste in row 1)**
+```
+user_id	user_name	group	user_link	user_description	user_followers_cnt	last_response_date	response_count	status
+```
+
+**Step 2: Import User Data**
+1. Open `user_list_20250623.xlsx` in Excel
+2. Select and copy these columns:
+   - Column C (user_id)
+   - Column B (user_name)
+   - Column D (user_link)
+   - Column E (user_description)
+   - Column G (user_followers_cnt)
+3. In Google Sheets, click cell A2 and paste
+
+**Step 3: Assign Groups Sequentially**
+In column C (group), starting from C2:
+- Type "Group1" in C2
+- Select C2:C57 and press Ctrl+D to fill down (56 users)
+- Type "Group2" in C58
+- Select C58:C113 and press Ctrl+D to fill down (56 users)
+- Type "Group3" in C114
+- Select C114:C170 and press Ctrl+D to fill down (57 users)
+- Type "Group4" in C171
+- Select C171:C227 and press Ctrl+D to fill down (57 users)
+
+**Step 4: Add Default Values**
+- Column H (response_count): Type "0" in H2, select H2:H227, press Ctrl+D
+- Column I (status): Type "active" in I2, select I2:I227, press Ctrl+D
 
 #### 4.2 Test Response Generation
 1. Select 5-10 users in Users sheet
