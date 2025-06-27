@@ -118,10 +118,11 @@ function generateResponsesForSelected() {
     const promptConfig = prompts[group];
     if (!promptConfig) return;
     
-    // Generate response
+    // --- UPDATED LINE ---
+    // Generate response by replacing placeholders for user_name and post_content
     const prompt = promptConfig.template
-      .replace('{post_content}', samplePost)
-      .replace('{user_topics}', '生活、旅行'); // Sample topics
+      .replace('{user_name}', userName)
+      .replace('{post_content}', samplePost);
     
     const response = callDeepseekAPI(prompt, promptConfig.system);
     

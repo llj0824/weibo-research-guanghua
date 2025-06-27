@@ -29,10 +29,10 @@ Tab 2: Prompts (EDITABLE BY HAN TIANSHI)
 ┌────────┬──────────────────────────────────────────────────────────┐
 │ group  │                    prompt_template                        │
 ├────────┼──────────────────────────────────────────────────────────┤
-│ Group1 │ You are a friendly Weibo user. Reply to: {post_content} │
-│ Group2 │ You know their interests in {user_topics}. Reply to...  │
-│ Group3 │ I am an AI assistant. I'd like to respond to...         │
-│ Group4 │ I am an AI. I've noticed you post about {user_topics}...│
+│ Group1 │ Act as a curious friend, ask a question about: {post_content} │
+│ Group2 │ As a follower, connect {user_topics} to: {post_content}    │
+│ Group3 │ I am an AI. Give a helpful response to: {post_content}      │
+│ Group4 │ AI knows {user_topics}. Response for: {post_content}         │
 └────────┴──────────────────────────────────────────────────────────┘
          ↑ Han Tianshi can edit these prompts anytime!
 
