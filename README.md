@@ -1,5 +1,7 @@
 # AI Identity Disclosure Effects on Social Media Engagement: A Weibo Experiment
 
+This project is designed to study the effects of AI identity disclosure on user engagement on the social media platform Weibo. It uses a Google Sheet as a control panel and database, powered by a Google Apps Script that interacts with the DeepSeek AI API to generate responses to Weibo posts.
+
 ## Research Team
 
 - **Institution**: Peking University (Beijing, China)
@@ -39,6 +41,31 @@ This research project investigates the differential effects of AI identity discl
 - **Method**: Reply to users' posts based on experimental condition
 - **Duration**: [To be specified]
 - **Outcome Measures**: Changes in user posting activity, engagement metrics
+
+
+## Core Components
+
+The system is composed of three main parts:
+
+1.  **Google Sheets**: The central hub for managing the experiment. It contains sheets for `Users`, `Prompts`, and a `Response Queue`.
+    *   `Users`: Manages the list of Weibo users, their assigned experimental group, and other metadata.
+    *   `Prompts`: Stores different prompt templates tailored for each experimental group (e.g., human-like vs. AI-disclosed).
+    *   `Response Queue`: Logs every generated response, its approval status, and the context (user, post, prompt used) for later analysis.
+
+2.  **`AppScript.js`**: The engine of the project. This Google Apps Script is bound to the Google Sheet and automates the response generation workflow.
+    *   It adds a custom menu ("🤖 Response System") to the Google Sheet UI.
+    *   It fetches user data and the appropriate prompt from the sheets.
+    *   It calls the DeepSeek API to generate a response.
+    *   It writes the generated response and its context back to the `Response Queue` sheet.
+
+3.  **DeepSeek API**: The AI model (`deepseek-chat`, which is DeepSeek-V3) that generates the actual text for the responses based on the prompts provided by the script.
+
+1.  **Setup**: Follow the detailed steps in the [GOOGLE_SHEETS_IMPLEMENTATION_GUIDE.md](./GOOGLE_SHEETS_IMPLEMENTATION_GUIDE.md) to set up your Google Sheet, create the necessary tabs (`Users`, `Prompts`, `Response Queue`), and paste the code from `AppScript.js` into the Apps Script editor.
+
+2.  **Execution**:
+    *   Select one or more users in the `Users` sheet.
+    *   Click the custom menu **🤖 Response System** -> **📝 Generate Responses for Selected Users**.
+    *   Check the `Response Queue` sheet to see the newly generated responses and their context.
 
 ## Data Description
 

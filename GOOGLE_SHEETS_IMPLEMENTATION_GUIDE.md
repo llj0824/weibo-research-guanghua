@@ -152,7 +152,7 @@ Summary statistics (will auto-calculate):
 2. Click on Project Settings (gear icon)
 3. Add Script Property:
    - Property: `DEEPSEEK_API_KEY`
-   - Value: `sk-5d7ba189b92c4ffd967c48a9c8607c82`
+   - Value: `your-api-key-here`
 
 ### Step 3: Create Apps Script Code
 @AppScript.js
