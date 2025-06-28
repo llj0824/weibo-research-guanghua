@@ -26,11 +26,11 @@ function getApiKey() {
 // Main menu
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
-  ui.createMenu('🤖 Response System')
+  ui.createMenu('🤖 光华新媒体 AI 助手 ')
     .addItem('📝 Generate Responses for Selected Users', 'generateResponsesForSelected')
-    .addItem('🔄 Generate All Pending Responses', 'generateAllResponses')
+    // .addItem('🔄 Generate All Pending Responses', 'generateAllResponses')
     .addItem('✅ Approve All Responses', 'approveAllResponses')
-    .addItem('📊 Update Analytics', 'updateAnalytics')
+    // .addItem('📊 Update Analytics', 'updateAnalytics')
     .addSeparator()
     .addItem('⚙️ Settings', 'showSettings')
     .addToUi();
@@ -53,7 +53,7 @@ function callDeepseekAPI(prompt, systemPrompt = '') {
       }
     ],
     temperature: 0.7,
-    max_tokens: 150
+    max_tokens: 2000
   };
   
   const options = {
@@ -103,7 +103,7 @@ function generateResponsesForSelected() {
   }
   
   // Sample post content (in real implementation, fetch from Weibo)
-  const samplePost = "今天天气真好，出去散步了一圈，心情特别愉快！🌞";
+  const samplePost = "上班的日子就像一条看不到尽头的路，但还是得咬牙坚持走下去。有没有人和我一样偶尔也会迷茫?";
   
   let responsesGenerated = 0;
   
@@ -154,49 +154,4 @@ function showSettings() {
     .setWidth(400)
     .setHeight(300);
   SpreadsheetApp.getUi().showModalDialog(html, 'Settings');
-}
-
-// Update analytics
-function updateAnalytics() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet();
-  const queueSheet = sheet.getSheetByName('Response Queue');
-  const analyticsSheet = sheet.getSheetByName('Analytics');
-  
-  const data = queueSheet.getDataRange().getValues();
-  
-  // Calculate statistics
-  let stats = {
-    total: data.length - 1,
-    approved: 0,
-    sent: 0,
-    byGroup: {}
-  };
-  
-  for (let i = 1; i < data.length; i++) {
-    const group = data[i][3];
-    const approved = data[i][7];
-    const sentDate = data[i][9];
-    
-    if (!stats.byGroup[group]) stats.byGroup[group] = 0;
-    stats.byGroup[group]++;
-    
-    if (approved === 'YES') stats.approved++;
-    if (sentDate) stats.sent++;
-  }
-  
-  // Update analytics sheet
-  analyticsSheet.clear();
-  analyticsSheet.getRange(1, 1).setValue('Analytics Dashboard');
-  analyticsSheet.getRange(2, 1).setValue('Last Updated: ' + new Date());
-  
-  let row = 4;
-  analyticsSheet.getRange(row++, 1).setValue('Total Responses: ' + stats.total);
-  analyticsSheet.getRange(row++, 1).setValue('Approved: ' + stats.approved);
-  analyticsSheet.getRange(row++, 1).setValue('Sent: ' + stats.sent);
-  
-  row++;
-  analyticsSheet.getRange(row++, 1).setValue('By Group:');
-  for (let group in stats.byGroup) {
-    analyticsSheet.getRange(row++, 1).setValue(group + ': ' + stats.byGroup[group]);
-  }
 }
