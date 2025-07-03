@@ -64,14 +64,11 @@ function getPostForUser(userId) {
     return null; // No posts found for user
   }
   
-  // Shuffle posts to get a random one for triggering and for history
-  for (let i = userPosts.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [userPosts[i], userPosts[j]] = [userPosts[j], userPosts[i]];
-  }
+  // Sort posts by publish time (newest first)
+  userPosts.sort((a, b) => new Date(b.publishTime) - new Date(a.publishTime));
   
-  const triggeringPost = userPosts.shift(); // Take the first post as the trigger
-  const historicalPosts = userPosts.slice(0, 3); // Take up to the next 3 for history
+  const triggeringPost = userPosts.shift(); // The most recent post is the trigger
+  const historicalPosts = userPosts; // All other posts are history
   
   return { triggeringPost, historicalPosts };
 }
