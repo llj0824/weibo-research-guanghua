@@ -41,8 +41,8 @@ function getPostForUser(userId) {
     if (String(data[i][0]) === String(userId)) {
       userPosts.push({
         postId: data[i][1],
-        content: data[i][2],
-        topics: data[i][3]
+        content: data[i][4], // post_content is column 4
+        publishTime: data[i][3] // post_publish_time is column 3
       });
     }
   }
@@ -73,7 +73,7 @@ function callDeepseekAPI(prompt, systemPrompt = '') {
       }
     ],
     temperature: 0.7,
-    max_tokens: 1000
+    max_tokens: 2000
   };
   
   const options = {
@@ -144,16 +144,19 @@ function generateResponsesForSelected() {
       return;
     }
     
-    // Generate response with real post content
+    // Generate response with real post content and date
     const prompt = promptConfig.template
       .replace('{user_name}', userName)
       .replace('{post_content}', postData.content)
-      .replace('{user_topics}', postData.topics || '生活分享');
+      .replace('{post_date}', postData.publishTime || '最近');
     
     const response = callDeepseekAPI(prompt, promptConfig.system);
     
     // Add to queue with real post data
     const timestamp = new Date();
+    // Determine if user history should be used based on group
+    const usedHistory = (group === 'Group2' || group === 'Group4') ? 'YES' : 'NO';
+    
     queueSheet.appendRow([
       timestamp,
       userId,
@@ -161,11 +164,13 @@ function generateResponsesForSelected() {
       group,
       postData.postId,
       postData.content,
+      postData.publishTime,
       response,
       'NO', // Not approved yet
       '', // Final response (empty)
       '', // Sent date (empty)
-      promptConfig.template
+      promptConfig.template,
+      usedHistory // Track if user history was used
     ]);
     
     responsesGenerated++;

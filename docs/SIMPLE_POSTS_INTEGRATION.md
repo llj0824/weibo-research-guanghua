@@ -12,19 +12,15 @@ This guide shows how to manually integrate real Weibo posts from the Excel files
 ### 1.2 Set Column Headers
 Copy and paste this header row into row 1:
 ```
-user_id	post_id	post_content	post_topic_names
+user_id	post_id	post_link	post_publish_time	post_content	post_geo	post_likes_cnt	post_comments_cnt	post_reposts_cnt	post_pic_num	post_pics	post_video_url	post_topic_names	post_topic_num	post_topic_urls
 ```
 
 ### 1.3 Import Data from Excel
 1. Open `posting_history_af0531.xlsx` in Excel
-2. Select these columns (hold Ctrl/Cmd to select multiple):
-   - Column A: user_id
-   - Column B: post_id  
-   - Column E: post_content
-   - Column N: post_topic_names
-3. Copy the selected columns
+2. Select ALL columns (A through O) - this includes all post data
+3. Copy all the selected data
 4. In Google Sheets "Posts Data" tab, click cell A2
-5. Paste (this will import all the real posts)
+5. Paste (this will import all the real posts with complete data)
 
 **Note**: You should now have hundreds of real posts in your sheet!
 
@@ -81,8 +77,8 @@ function getPostForUser(userId) {
     if (String(data[i][0]) === String(userId)) {
       userPosts.push({
         postId: data[i][1],
-        content: data[i][2],
-        topics: data[i][3]
+        content: data[i][4], // post_content is column 4 (index 4)
+        publishTime: data[i][3] // post_publish_time is column 3 (index 3)
       });
     }
   }
@@ -184,16 +180,19 @@ function generateResponsesForSelected() {
       return;
     }
     
-    // Generate response with real post content
+    // Generate response with real post content and date
     const prompt = promptConfig.template
       .replace('{user_name}', userName)
       .replace('{post_content}', postData.content)
-      .replace('{user_topics}', postData.topics || '生活分享');
+      .replace('{post_date}', postData.publishTime || '最近');
     
     const response = callDeepseekAPI(prompt, promptConfig.system);
     
     // Add to queue with real post data
     const timestamp = new Date();
+    // Determine if user history should be used based on group
+    const usedHistory = (group === 'Group2' || group === 'Group4') ? 'YES' : 'NO';
+    
     queueSheet.appendRow([
       timestamp,
       userId,
@@ -201,11 +200,13 @@ function generateResponsesForSelected() {
       group,
       postData.postId,
       postData.content,
+      postData.publishTime,
       response,
       'NO', // Not approved yet
       '', // Final response (empty)
       '', // Sent date (empty)
-      promptConfig.template
+      promptConfig.template,
+      usedHistory // Track if user history was used
     ]);
     
     responsesGenerated++;
@@ -290,7 +291,9 @@ function updateAnalytics() {
 4. **Check Results**: Look in "Response Queue" sheet - you should see:
    - Real post content (not the weather sample)
    - Real post IDs
+   - Post publish times
    - Responses generated based on actual posts
+   - "used_history" column showing YES for Groups 2&4, NO for Groups 1&3
 
 ## Troubleshooting
 
@@ -309,8 +312,10 @@ function updateAnalytics() {
 
 1. **Real Content**: Responses are based on actual Weibo posts
 2. **Variety**: Each time you generate, it picks a random post from that user
-3. **Context**: For Groups 2 & 4, real topics are included if available
-4. **Simple Setup**: Just copy-paste from Excel, no complex integration
+3. **Complete Data**: All post data (engagement, location, media, etc.) is preserved for future analysis
+4. **Context**: Post dates are included for time-aware responses
+5. **Verification**: Clear tracking of which groups use user history
+6. **Simple Setup**: Just copy-paste from Excel, no complex integration
 
 ## Next Steps
 
