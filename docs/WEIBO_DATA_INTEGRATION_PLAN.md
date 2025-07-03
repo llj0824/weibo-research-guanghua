@@ -15,7 +15,7 @@ This document outlines the necessary updates to integrate real Weibo posting dat
 
 ### 1. Google Sheets Structure Updates
 
-#### 1.1 Add "Posts Data" Sheet
+#### 1.1 Add "Posts" Sheet
 
 **Purpose**: Store recent posts from each user for response generation
 
@@ -29,7 +29,7 @@ user_id | post_id | post_content | post_topic_names | post_publish_time | post_l
 **Import Instructions**:
 1. Open `posting_history_af0531.xlsx` in Excel
 2. Copy columns: A (user_id), B (post_id), E (post_content), N (post_topic_names), D (post_publish_time), G (post_likes_cnt), H (post_comments_cnt)
-3. Paste into new "Posts Data" sheet in Google Sheets
+3. Paste into new "Posts" sheet in Google Sheets
 4. Sort by user_id then by post_publish_time (newest first)
 
 #### 1.2 Add "User Context" Sheet
@@ -70,7 +70,7 @@ const samplePost = "今天天气真好，出去散步了一圈，心情特别愉
 // Get most recent post for a user
 function getRecentPostForUser(userId) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet();
-  const postsSheet = sheet.getSheetByName('Posts Data');
+  const postsSheet = sheet.getSheetByName('Posts');
   const data = postsSheet.getDataRange().getValues();
   
   for (let i = 1; i < data.length; i++) {
@@ -177,7 +177,7 @@ function importLatestPosts() {
   SpreadsheetApp.getUi().alert(
     'To update posts:\n' +
     '1. Export latest posts from Weibo\n' +
-    '2. Copy data to Posts Data sheet\n' +
+    '2. Copy data to Posts sheet\n' +
     '3. Sort by user_id and date'
   );
 }

@@ -31,8 +31,7 @@ Since this is a Google Apps Script project, there are no traditional build comma
    - Users (226 users assigned to 4 groups)
    - Prompts (editable prompt templates)
    - Response Queue (generated responses)
-   - Analytics (experiment progress)
-   - Posts Data (real Weibo posts)
+   - Posts (real Weibo posts)
 
 2. **Deploy Script**:
    - Open Google Apps Script editor from Sheet (Extensions → Apps Script)

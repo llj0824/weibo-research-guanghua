@@ -1,7 +1,20 @@
 /**
  * AppScript.js - UPDATED VERSION WITH REAL POSTS
  * 
- * This version integrates with the Posts Data sheet to use real Weibo posts
+ * This version integrates with the Posts sheet to use real Weibo posts
+ * This Google Apps Script powers the "Weibo AI Experiment - Response System" Google Sheet.
+ * It connects the sheet to the Deepseek API to generate, approve, and manage AI-generated responses
+ * for Weibo users divided into experimental groups. The script adds a custom menu for workflow actions,
+ * handles prompt generation, and manages analytics, following the workflow and structure described in
+ * GOOGLE_SHEETS_IMPLEMENTATION_GUIDE.md.
+ * 
+ * Key Features:
+ * - Adds a custom menu for generating and approving responses
+ * - Calls Deepseek API for AI-generated replies
+ * - Supports group-based prompt templates and analytics
+ * - Designed for use with the Users, Prompts, and Response Queue tabs as described in the implementation guide
+ * 
+ *  * This version integrates with the Posts sheet to use real Weibo posts
  * instead of hardcoded sample content.
  */
 
@@ -27,10 +40,10 @@ function onOpen() {
 // NEW FUNCTION: Get real post for user
 function getPostForUser(userId) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet();
-  const postsSheet = sheet.getSheetByName('Posts Data');
+  const postsSheet = sheet.getSheetByName('Posts');
   
   if (!postsSheet) {
-    throw new Error('Posts Data sheet not found! Please create it and import post data.');
+    throw new Error('Posts sheet not found! Please create it and import post data.');
   }
   
   const data = postsSheet.getDataRange().getValues();
