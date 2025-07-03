@@ -73,6 +73,9 @@ function getPostForUser(userId) {
 function callDeepseekAPI(prompt, systemPrompt = '') {
   const apiKey = getApiKey();
   
+  // DEBUG: Log the prompt being sent
+  console.log('Sending prompt to API:', prompt.substring(0, 100) + '...');
+  
   const payload = {
     model: MODEL,
     messages: [
@@ -101,12 +104,19 @@ function callDeepseekAPI(prompt, systemPrompt = '') {
   
   try {
     const response = UrlFetchApp.fetch(DEEPSEEK_API_URL, options);
-    const result = JSON.parse(response.getContentText());
+    const responseText = response.getContentText();
+    
+    // DEBUG: Log raw API response
+    console.log('API Response Status:', response.getResponseCode());
+    console.log('API Response Text:', responseText.substring(0, 200) + '...');
+    
+    const result = JSON.parse(responseText);
     
     if (result.choices && result.choices[0]) {
       return result.choices[0].message.content;
     } else {
-      throw new Error('Invalid API response');
+      console.error('No choices in API response:', result);
+      throw new Error('Invalid API response - no choices');
     }
   } catch (error) {
     console.error('Deepseek API Error:', error);
@@ -157,15 +167,21 @@ function generateResponsesForSelected() {
       return;
     }
     
+    // DEBUG: Log retrieved post data
+    console.log(`User ${userId}: Found post with content:`, postData.content ? postData.content.substring(0, 50) + '...' : 'UNDEFINED');
+    
     // Generate response with real post content and date
     const prompt = promptConfig.template
       .replace('{user_name}', userName)
-      .replace('{post_content}', postData.content)
+      .replace('{post_content}', postData.content || 'No content available')
       .replace('{post_date}', postData.publishTime || '最近');
+    
+    // DEBUG: Log final prompt
+    console.log(`Final prompt for ${userId}:`, prompt.substring(0, 100) + '...');
     
     const response = callDeepseekAPI(prompt, promptConfig.system);
     
-    // Add to queue with real post data
+    // Add to queue with proper column structure
     const timestamp = new Date();
     // Determine if user history should be used based on group
     const usedHistory = (group === 'Group2' || group === 'Group4') ? 'YES' : 'NO';
