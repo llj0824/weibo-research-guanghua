@@ -37,7 +37,7 @@ function onOpen() {
     .addToUi();
 }
 
-// NEW FUNCTION: Get real post for user
+// NEW FUNCTION: Get real post for user and their history
 function getPostForUser(userId) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet();
   const postsSheet = sheet.getSheetByName('Posts');
@@ -48,25 +48,32 @@ function getPostForUser(userId) {
   
   const data = postsSheet.getDataRange().getValues();
   
-  // Find posts for this user (skip header row)
+  // Find all posts for this user (skip header row)
   const userPosts = [];
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][0]) === String(userId)) {
       userPosts.push({
         postId: data[i][1],
-        content: data[i][4], // post_content is column 4
-        publishTime: data[i][3] // post_publish_time is column 3
+        publishTime: data[i][3], // post_publish_time is column 4 (index 3)
+        content: data[i][4]     // post_content is column 5 (index 4)
       });
     }
   }
   
-  // Return a random post from user's posts
-  if (userPosts.length > 0) {
-    const randomIndex = Math.floor(Math.random() * userPosts.length);
-    return userPosts[randomIndex];
+  if (userPosts.length === 0) {
+    return null; // No posts found for user
   }
   
-  return null;
+  // Shuffle posts to get a random one for triggering and for history
+  for (let i = userPosts.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [userPosts[i], userPosts[j]] = [userPosts[j], userPosts[i]];
+  }
+  
+  const triggeringPost = userPosts.shift(); // Take the first post as the trigger
+  const historicalPosts = userPosts.slice(0, 3); // Take up to the next 3 for history
+  
+  return { triggeringPost, historicalPosts };
 }
 
 // Generate response using Deepseek
@@ -159,47 +166,52 @@ function generateResponsesForSelected() {
     const promptConfig = prompts[group];
     if (!promptConfig) return;
     
-    // Get real post for this user
+    // Get real post for this user, now including history
     const postData = getPostForUser(userId);
-    if (!postData) {
+    if (!postData || !postData.triggeringPost) {
       console.log(`No posts found for user ${userId} (${userName})`);
       skippedUsers++;
       return;
     }
     
-    // DEBUG: Log retrieved post data
-    console.log(`User ${userId}: Found post with content:`, postData.content ? postData.content.substring(0, 50) + '...' : 'UNDEFINED');
+    const { triggeringPost, historicalPosts } = postData;
+    let historyContext = 'N/A';
+    let finalPrompt = promptConfig.template;
+
+    // Prepare history context only for relevant groups and if history exists
+    if ((group === 'Group2' || group === 'Group4') && historicalPosts.length > 0) {
+      historyContext = historicalPosts.map(p => 
+        `- (On ${new Date(p.publishTime).toLocaleDateString()}) User posted: "${p.content}"`
+      ).join('\n');
+    }
+
+    // Replace all placeholders to create the final prompt
+    finalPrompt = finalPrompt.replace('{user_name}', userName);
+    finalPrompt = finalPrompt.replace('{post_content}', triggeringPost.content || 'No content available');
     
-    // Generate response with real post content and date
-    const prompt = promptConfig.template
-      .replace('{user_name}', userName)
-      .replace('{post_content}', postData.content || 'No content available')
-      .replace('{post_date}', postData.publishTime || '最近');
+    // Replace history placeholder, providing a default if not applicable
+    if (finalPrompt.includes('{user_history}')) {
+      finalPrompt = finalPrompt.replace('{user_history}', historyContext === 'N/A' ? 'No history was provided.' : historyContext);
+    }
     
-    // DEBUG: Log final prompt
-    console.log(`Final prompt for ${userId}:`, prompt.substring(0, 100) + '...');
+    const response = callDeepseekAPI(finalPrompt, promptConfig.system);
     
-    const response = callDeepseekAPI(prompt, promptConfig.system);
-    
-    // Add to queue with proper column structure
     const timestamp = new Date();
-    // Determine if user history should be used based on group
-    const usedHistory = (group === 'Group2' || group === 'Group4') ? 'YES' : 'NO';
     
+    // Add to queue with the new, detailed, research-focused structure
     queueSheet.appendRow([
       timestamp,
       userId,
       userName,
       group,
-      postData.postId,
-      postData.content,
-      postData.publishTime,
+      triggeringPost.postId,
+      triggeringPost.content,
+      historyContext,        // NEW: The actual history provided
+      finalPrompt,           // NEW: The exact prompt sent to the API
       response,
-      'NO', // Not approved yet
-      '', // Final response (empty)
-      '', // Sent date (empty)
-      promptConfig.template,
-      usedHistory // Track if user history was used
+      'NO',                  // approved
+      '',                    // final_response
+      ''                     // sent_date
     ]);
     
     responsesGenerated++;

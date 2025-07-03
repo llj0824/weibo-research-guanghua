@@ -45,12 +45,11 @@ Replace the current `AppScript.js` with this updated version that looks up real 
 1. **Check Posts**: Make sure you have posts imported in the "Posts" sheet
 2. **Select Users**: In the "Users" sheet, select 2-3 users (make sure their user_ids exist in Posts)
 3. **Generate Responses**: Click "🤖 Response System" → "📝 Generate Responses for Selected Users"
-4. **Check Results**: Look in "Response Queue" sheet - you should see:
-   - Real post content (not the weather sample)
-   - Real post IDs
-   - Post publish times
-   - Responses generated based on actual posts
-   - "used_history" column showing YES for Groups 2&4, NO for Groups 1&3
+4. **Check Results**: Look in the "Response Queue" sheet. You should now see a detailed log with the following columns, providing a clear audit trail:
+   - `triggering_post_content`: The content of the post the AI is replying to.
+   - `history_context_provided`: For Groups 2 & 4, this will contain the exact historical posts given to the AI. For other groups, it will show 'N/A'.
+   - `final_prompt_sent`: The complete, final prompt that was sent to the API.
+   - `generated_response`: The raw output from the AI.
 
 ## Troubleshooting
 
