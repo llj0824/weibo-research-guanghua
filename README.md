@@ -50,7 +50,7 @@ The system is composed of three main parts:
 1.  **Google Sheets**: The central hub for managing the experiment. It contains sheets for `Users`, `Prompts`, and a `Response Queue`.
     *   `Users`: Manages the list of Weibo users, their assigned experimental group, and other metadata.
     *   `Prompts`: Stores different prompt templates tailored for each experimental group (e.g., human-like vs. AI-disclosed).
-    *   `Response Queue`: Logs every generated response, its approval status, and the context (user, post, prompt used) for later analysis.
+    *   `Response Queue`: A detailed, research-focused log of every generated response. It includes the triggering post, the exact historical context and final prompt provided to the AI, and the AI's raw output. The columns are: `timestamp`, `user_id`, `user_name`, `group`, `triggering_post_id`, `triggering_post_content`, `history_context_provided`, `final_prompt_sent`, `generated_response`, `approved`, `final_response`, and `sent_date`.
 
 2.  **`AppScript.js`**: The engine of the project. This Google Apps Script is bound to the Google Sheet and automates the response generation workflow.
     *   It adds a custom menu ("🤖 Response System") to the Google Sheet UI.

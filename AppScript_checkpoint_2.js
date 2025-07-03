@@ -1,7 +1,20 @@
 /**
  * AppScript.js - UPDATED VERSION WITH REAL POSTS
  * 
- * This version integrates with the Posts Data sheet to use real Weibo posts
+ * This version integrates with the Posts sheet to use real Weibo posts
+ * This Google Apps Script powers the "Weibo AI Experiment - Response System" Google Sheet.
+ * It connects the sheet to the Deepseek API to generate, approve, and manage AI-generated responses
+ * for Weibo users divided into experimental groups. The script adds a custom menu for workflow actions,
+ * handles prompt generation, and manages analytics, following the workflow and structure described in
+ * GOOGLE_SHEETS_IMPLEMENTATION_GUIDE.md.
+ * 
+ * Key Features:
+ * - Adds a custom menu for generating and approving responses
+ * - Calls Deepseek API for AI-generated replies
+ * - Supports group-based prompt templates and analytics
+ * - Designed for use with the Users, Prompts, and Response Queue tabs as described in the implementation guide
+ * 
+ *  * This version integrates with the Posts sheet to use real Weibo posts
  * instead of hardcoded sample content.
  */
 
@@ -24,41 +37,51 @@ function onOpen() {
     .addToUi();
 }
 
-// NEW FUNCTION: Get real post for user
+// NEW FUNCTION: Get real post for user and their history
 function getPostForUser(userId) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet();
-  const postsSheet = sheet.getSheetByName('Posts Data');
+  const postsSheet = sheet.getSheetByName('Posts');
   
   if (!postsSheet) {
-    throw new Error('Posts Data sheet not found! Please create it and import post data.');
+    throw new Error('Posts sheet not found! Please create it and import post data.');
   }
   
   const data = postsSheet.getDataRange().getValues();
   
-  // Find posts for this user (skip header row)
+  // Find all posts for this user (skip header row)
   const userPosts = [];
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][0]) === String(userId)) {
       userPosts.push({
         postId: data[i][1],
-        content: data[i][2],
-        topics: data[i][3]
+        publishTime: data[i][3], // post_publish_time is column 4 (index 3)
+        content: data[i][4]     // post_content is column 5 (index 4)
       });
     }
   }
   
-  // Return a random post from user's posts
-  if (userPosts.length > 0) {
-    const randomIndex = Math.floor(Math.random() * userPosts.length);
-    return userPosts[randomIndex];
+  if (userPosts.length === 0) {
+    return null; // No posts found for user
   }
   
-  return null;
+  // Shuffle posts to get a random one for triggering and for history
+  for (let i = userPosts.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [userPosts[i], userPosts[j]] = [userPosts[j], userPosts[i]];
+  }
+  
+  const triggeringPost = userPosts.shift(); // Take the first post as the trigger
+  const historicalPosts = userPosts.slice(0, 3); // Take up to the next 3 for history
+  
+  return { triggeringPost, historicalPosts };
 }
 
 // Generate response using Deepseek
 function callDeepseekAPI(prompt, systemPrompt = '') {
   const apiKey = getApiKey();
+  
+  // DEBUG: Log the prompt being sent
+  console.log('Sending prompt to API:', prompt.substring(0, 100) + '...');
   
   const payload = {
     model: MODEL,
@@ -73,7 +96,7 @@ function callDeepseekAPI(prompt, systemPrompt = '') {
       }
     ],
     temperature: 0.7,
-    max_tokens: 1000
+    max_tokens: 2000
   };
   
   const options = {
@@ -88,12 +111,19 @@ function callDeepseekAPI(prompt, systemPrompt = '') {
   
   try {
     const response = UrlFetchApp.fetch(DEEPSEEK_API_URL, options);
-    const result = JSON.parse(response.getContentText());
+    const responseText = response.getContentText();
+    
+    // DEBUG: Log raw API response
+    console.log('API Response Status:', response.getResponseCode());
+    console.log('API Response Text:', responseText.substring(0, 200) + '...');
+    
+    const result = JSON.parse(responseText);
     
     if (result.choices && result.choices[0]) {
       return result.choices[0].message.content;
     } else {
-      throw new Error('Invalid API response');
+      console.error('No choices in API response:', result);
+      throw new Error('Invalid API response - no choices');
     }
   } catch (error) {
     console.error('Deepseek API Error:', error);
@@ -136,36 +166,52 @@ function generateResponsesForSelected() {
     const promptConfig = prompts[group];
     if (!promptConfig) return;
     
-    // Get real post for this user
+    // Get real post for this user, now including history
     const postData = getPostForUser(userId);
-    if (!postData) {
+    if (!postData || !postData.triggeringPost) {
       console.log(`No posts found for user ${userId} (${userName})`);
       skippedUsers++;
       return;
     }
     
-    // Generate response with real post content
-    const prompt = promptConfig.template
-      .replace('{user_name}', userName)
-      .replace('{post_content}', postData.content)
-      .replace('{user_topics}', postData.topics || '生活分享');
+    const { triggeringPost, historicalPosts } = postData;
+    let historyContext = 'N/A';
+    let finalPrompt = promptConfig.template;
+
+    // Prepare history context only for relevant groups and if history exists
+    if ((group === 'Group2' || group === 'Group4') && historicalPosts.length > 0) {
+      historyContext = historicalPosts.map(p => 
+        `- (On ${new Date(p.publishTime).toLocaleDateString()}) User posted: "${p.content}"`
+      ).join('\n');
+    }
+
+    // Replace all placeholders to create the final prompt
+    finalPrompt = finalPrompt.replace('{user_name}', userName);
+    finalPrompt = finalPrompt.replace('{post_content}', triggeringPost.content || 'No content available');
     
-    const response = callDeepseekAPI(prompt, promptConfig.system);
+    // Replace history placeholder, providing a default if not applicable
+    if (finalPrompt.includes('{user_history}')) {
+      finalPrompt = finalPrompt.replace('{user_history}', historyContext === 'N/A' ? 'No history was provided.' : historyContext);
+    }
     
-    // Add to queue with real post data
+    const response = callDeepseekAPI(finalPrompt, promptConfig.system);
+    
     const timestamp = new Date();
+    
+    // Add to queue with the new, detailed, research-focused structure
     queueSheet.appendRow([
       timestamp,
       userId,
       userName,
       group,
-      postData.postId,
-      postData.content,
+      triggeringPost.postId,
+      triggeringPost.content,
+      historyContext,        // NEW: The actual history provided
+      finalPrompt,           // NEW: The exact prompt sent to the API
       response,
-      'NO', // Not approved yet
-      '', // Final response (empty)
-      '', // Sent date (empty)
-      promptConfig.template
+      'NO',                  // approved
+      '',                    // final_response
+      ''                     // sent_date
     ]);
     
     responsesGenerated++;
