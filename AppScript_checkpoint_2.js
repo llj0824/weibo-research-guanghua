@@ -64,14 +64,11 @@ function getPostForUser(userId) {
     return null; // No posts found for user
   }
   
-  // Shuffle posts to get a random one for triggering and for history
-  for (let i = userPosts.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [userPosts[i], userPosts[j]] = [userPosts[j], userPosts[i]];
-  }
+  // Sort posts by publish time (newest first)
+  userPosts.sort((a, b) => new Date(b.publishTime) - new Date(a.publishTime));
   
-  const triggeringPost = userPosts.shift(); // Take the first post as the trigger
-  const historicalPosts = userPosts.slice(0, 3); // Take up to the next 3 for history
+  const triggeringPost = userPosts.shift(); // The most recent post is the trigger
+  const historicalPosts = userPosts; // All other posts are history
   
   return { triggeringPost, historicalPosts };
 }
@@ -231,49 +228,4 @@ function showSettings() {
     .setWidth(400)
     .setHeight(300);
   SpreadsheetApp.getUi().showModalDialog(html, 'Settings');
-}
-
-// Update analytics
-function updateAnalytics() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet();
-  const queueSheet = sheet.getSheetByName('Response Queue');
-  const analyticsSheet = sheet.getSheetByName('Analytics');
-  
-  const data = queueSheet.getDataRange().getValues();
-  
-  // Calculate statistics
-  let stats = {
-    total: data.length - 1,
-    approved: 0,
-    sent: 0,
-    byGroup: {}
-  };
-  
-  for (let i = 1; i < data.length; i++) {
-    const group = data[i][3];
-    const approved = data[i][7];
-    const sentDate = data[i][9];
-    
-    if (!stats.byGroup[group]) stats.byGroup[group] = 0;
-    stats.byGroup[group]++;
-    
-    if (approved === 'YES') stats.approved++;
-    if (sentDate) stats.sent++;
-  }
-  
-  // Update analytics sheet
-  analyticsSheet.clear();
-  analyticsSheet.getRange(1, 1).setValue('Analytics Dashboard');
-  analyticsSheet.getRange(2, 1).setValue('Last Updated: ' + new Date());
-  
-  let row = 4;
-  analyticsSheet.getRange(row++, 1).setValue('Total Responses: ' + stats.total);
-  analyticsSheet.getRange(row++, 1).setValue('Approved: ' + stats.approved);
-  analyticsSheet.getRange(row++, 1).setValue('Sent: ' + stats.sent);
-  
-  row++;
-  analyticsSheet.getRange(row++, 1).setValue('By Group:');
-  for (let group in stats.byGroup) {
-    analyticsSheet.getRange(row++, 1).setValue(group + ': ' + stats.byGroup[group]);
-  }
 }
