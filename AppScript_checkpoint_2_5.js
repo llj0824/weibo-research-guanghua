@@ -1,5 +1,5 @@
 /**
- * AppScript.js - CHECKPOINT 3: TRIGGERING POST SHEET
+ * AppScript.js - CHECKPOINT 2.5: TRIGGERING POST SHEET
  * 
  * This version adds a separate "Triggering Post" sheet that can be populated
  * with the latest post from each user via a button click.
@@ -139,6 +139,7 @@ function getPostForUser(userId) {
       if (String(triggeringData[i][0]) === String(userId)) {
         triggeringPost = {
           postId: triggeringData[i][1],
+          postLink: triggeringData[i][2],
           publishTime: triggeringData[i][3],
           content: triggeringData[i][4]
         };
@@ -328,6 +329,7 @@ function generateResponsesForSelected() {
       group,
       triggeringPost.postId,
       triggeringPost.content,
+      triggeringPost.postLink,  // post_link column
       historyContext,        // The actual history provided
       finalPrompt,           // The exact prompt sent to the API
       response,
