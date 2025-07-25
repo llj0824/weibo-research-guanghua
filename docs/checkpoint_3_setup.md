@@ -17,9 +17,10 @@ This guide provides detailed, step-by-step instructions for deploying the Weibo 
 2. **Create these tabs (sheets) in exact order:**
 
 #### Tab 1: Users
-- Headers (Row 1): `user_id | user_name | group | weibo_user_id | weibo_screen_name | last_sync_date`
+- Headers (Row 1): `user_id | user_name | Treatment Group | user_link | user_description | user_followers_cnt | weibo_user_id | weibo_screen_name | last_sync_date | last_response_date | response_count | status | SamplePost`
 - Fill with your 226 users assigned to groups: Control, Group1, Group2, Group3, Group4
-- Leave weibo columns empty initially (will fill later)
+- The `user_id` should be the Weibo user ID (numeric) or `user_name` should be the Weibo screen name
+- The script will automatically add `last_sync_date` column if it doesn't exist
 
 #### Tab 2: Prompts
 - Headers (Row 1): `group | prompt_template | system_prompt`
@@ -158,7 +159,7 @@ function setInitialProperties() {
 
 ## Phase 5: Authorization and Testing
 
-### 5.1 Authorize Weibo Access [ON THIS STEP - waiting for 天实 set callback on weibo]
+### 5.1 Authorize Weibo Access [DONE]
 
 1. In Google Sheet, click **🤖 Response System → 🌐 Weibo Integration → 🔐 Authorize Weibo Access**
 2. A dialog appears with authorization link
@@ -179,75 +180,115 @@ function setInitialProperties() {
 ### 5.3 Prepare User Data
 
 1. Go to **Users** sheet
-2. For each user you want to sync, add EITHER:
-   - `weibo_user_id`: The numeric Weibo user ID
-   - `weibo_screen_name`: The Weibo username (without @)
+2. Your users should already have:
+   - `user_id`: Should be the Weibo user ID (numeric) 
+   - `user_name`: Should be the Weibo screen name
+   
+   The script will use these existing columns to sync with Weibo:
+   - If `user_id` is numeric, it will use it as the Weibo UID
+   - Otherwise, it will use `user_name` as the Weibo screen name
    
    Example:
    ```
-   user_id | user_name | group  | weibo_user_id | weibo_screen_name
-   001     | 张三      | Group1 | 1234567890    |
-   002     | 李四      | Group2 |               | lisi_weibo
+   user_id     | user_name      | Treatment Group | ...other columns...
+   1234567890  | zhangsan_weibo | Group1         | ...
+   lisi_weibo  | 李四的微博      | Group2         | ...
    ```
 
 ### 5.4 Test Sync Posts
 
-1. Select a few users in Users sheet (click and drag to select rows)
-2. Click **🤖 Response System → 🌐 Weibo Integration → 🔁 Sync Posts from Weibo**
-3. Wait for completion dialog
-4. Check **Posts** sheet for new entries
+This function (`syncUserPostsFromWeibo()`) fetches recent posts from Weibo for selected users and adds them to your Posts sheet.
+
+1. **Select users in Users sheet** (click and drag to select rows)
+   - The script will use their `user_id` (if numeric) or `user_name` to fetch from Weibo
+
+2. **Click** `🤖 Response System → 🌐 Weibo Integration → 🔁 Sync Posts from Weibo`
+   - For each selected user, the script:
+     - Calls Weibo API endpoint `/2/statuses/user_timeline.json` to get up to 50 recent posts
+     - Checks if posts already exist in Posts sheet (avoids duplicates by checking post_id)
+     - Adds new posts with all metadata (content, likes, comments, timestamps, etc.)
+     - Updates `last_sync_date` in Users sheet
+   - Uses 1 API request per user (counts toward 150/hour rate limit)
+
+3. **Wait for completion dialog** showing:
+   - Number of users successfully synced
+   - Total new posts added
+   - Any errors encountered
+
+4. **Check Posts sheet** for new entries
+   - New posts appear at the bottom with all 15 columns populated
+   - Posts are real Weibo data, not test data
 
 ### 5.5 Test Full Workflow
 
-1. Click **🤖 Response System → 🔄 Pull Latest Posts for All Users**
-   - This populates the Triggering Post sheet
+This demonstrates the complete AI response generation and posting cycle.
 
-2. Select users in Users sheet
-3. Click **🤖 Response System → 📝 Generate Responses for Selected Users**
-   - Check Response Queue for generated responses
+#### Step 1: Pull Latest Posts
+```
+🤖 Response System → 🔄 Pull Latest Posts for All Users
+```
+**What it does** (`pullLatestPosts()`):
+- Scans the Posts sheet for ALL users in your Users sheet
+- Finds each user's most recent post (by timestamp)
+- Copies these "latest posts" to the Triggering Post sheet
+- These become the posts that AI will respond to
+- Shows summary: "✅ Updated 226 users with their latest posts!"
 
-4. In Response Queue, change some `approved` values to "YES"
-5. Click **🤖 Response System → 🌐 Weibo Integration → 📤 Send Approved Replies**
-   - Check `weibo_comment_id` column for success
+#### Step 2: Generate AI Responses
+1. **Select users** in Users sheet (only select non-Control group users)
+2. **Click** `🤖 Response System → 📝 Generate Responses for Selected Users`
 
-## Phase 6: Troubleshooting
+**What it does** (`generateResponsesForSelected()`):
+- For each selected user:
+  - Gets their triggering post from Triggering Post sheet
+  - Gets their post history (for Group2 & Group4 only)
+  - Fetches the appropriate prompt template from Prompts sheet
+  - Replaces placeholders: `{user_name}`, `{post_content}`, `{user_history}`
+  - Calls DeepSeek API with the constructed prompt
+  - Saves the response to Response Queue with all context
 
-### Common Issues:
+3. **Check Response Queue** for generated responses
+   - Each row shows: timestamp, user info, triggering post, AI response
+   - `approved` column defaults to "NO"
+   - `history_context` shows what historical posts were provided (if any)
+   - `prompt_sent` shows the exact prompt sent to DeepSeek
 
-**"Not authorized with Weibo"**
-- Re-run authorization process
-- Check App Key and Secret are correct
+#### Step 3: Send to Weibo
+1. **In Response Queue**, change `approved` values to "YES" for responses you want to send
+   - You can also edit `final_response` to customize the text before sending
 
-**"Rate limit exceeded"**
-- Check usage: **🌐 Weibo Integration → 📊 Check API Usage**
-- Wait for next hour (limit resets hourly)
+2. **Click** `🤖 Response System → 🌐 Weibo Integration → 📤 Send Approved Replies`
 
-**"Script not found" error**
-- Ensure OAuth2 library is added correctly
-- Check library version is latest
+**What it does** (`sendApprovedRepliesToWeibo()`):
+- Scans Response Queue for rows where:
+  - `approved` = "YES"
+  - `sent_date` is empty
+  - `weibo_send_status` is not "success"
+- For each approved response:
+  - Truncates text to 140 characters (Weibo's limit)
+  - Calls Weibo API endpoint `/2/comments/create.json`
+  - Posts the comment on the original Weibo post
+  - Updates Response Queue with:
+    - `weibo_comment_id`: The ID of the posted comment
+    - `weibo_send_status`: "success" or "failed"
+    - `sent_date`: Current timestamp
+    - `weibo_error_message`: Error details if failed
 
-**No posts found during sync**
-- Verify weibo_user_id or screen_name is correct
-- Check if user has public posts
-- Ensure Weibo app is approved/active
+3. **Check results** in Response Queue:
+   - Look for `weibo_comment_id` - this confirms successful posting
+   - Failed sends show error in `weibo_error_message` column
+   - Common errors: post deleted, comment too long, rate limit
 
-**OAuth callback error**
-- Verify redirect URI in Weibo app matches exactly:
-  `https://script.google.com/macros/d/YOUR_ACTUAL_SCRIPT_ID/usercallback`
-- Ensure web app is deployed with "Anyone" access
+### Understanding the Data Flow
 
-## Phase 7: Production Checklist
-
-Before going live:
-
-1. ✅ All 6 sheets created with correct headers
-2. ✅ OAuth2 library added (version 43+)
-3. ✅ Script deployed as web app
-4. ✅ All API keys configured
-5. ✅ Weibo authorization completed
-6. ✅ Test with 5-10 users first
-7. ✅ Monitor rate limits closely
-8. ✅ Backup your data regularly
+```
+Weibo → Posts Sheet → Triggering Post Sheet → AI Generation → Response Queue → Weibo
+```
+1. **Sync**: Real posts from Weibo → Posts sheet
+2. **Select**: Latest post per user → Triggering Post sheet  
+3. **Generate**: Triggering post + prompt → AI response in Response Queue
+4. **Approve**: Manual review and approval
+5. **Send**: Approved responses → Posted as Weibo comments
 
 ## Important Notes:
 
@@ -256,33 +297,3 @@ Before going live:
 - **Sync Frequency**: Don't over-sync; once daily is usually enough
 - **Error Handling**: Check `weibo_error_message` column for failures
 - **Security**: Never share App Secret or API keys
-
-## API Usage Guidelines
-
-### Batch Processing
-- Sync multiple users at once to save API calls
-- Send replies in batches respecting rate limits
-- Use the API usage checker before large operations
-
-### Data Management
-- Regularly archive old responses to maintain performance
-- Export Response Queue data periodically
-- Monitor Posts sheet size (keep under 50,000 rows)
-
-### Error Recovery
-- Failed sends can be retried after fixing issues
-- Check error messages for specific problems
-- Keep logs of all API interactions
-
-## Next Steps
-
-1. **Small Scale Test**: Start with 5-10 users
-2. **Monitor Performance**: Track API usage patterns
-3. **Scale Gradually**: Increase user count slowly
-4. **Automate**: Consider time-based triggers for regular syncs
-5. **Analyze**: Use Analytics sheet to track engagement
-
----
-
-*Checkpoint 3 Setup Guide v1.0*
-*Last Updated: 2025-01-25*

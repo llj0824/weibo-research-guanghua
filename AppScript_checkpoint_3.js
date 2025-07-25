@@ -91,12 +91,12 @@ function onOpen() {
   ui.createMenu('🤖 Response System')
     .addItem('📝 Generate Responses for Selected Users', 'generateResponsesForSelected')
     .addSeparator()
-    .addItem('🔄 Pull Latest Posts for All Users', 'pullLatestPosts')
+    .addItem('🔄 Refresh Triggering Posts for All Users (Triggering Posts)', 'pullLatestPosts')
     .addSeparator()
     .addSubMenu(ui.createMenu('🌐 Weibo Integration')
       .addItem('🔐 Authorize Weibo Access', 'authorizeWeibo')
-      .addItem('🔁 Sync Posts from Weibo', 'syncUserPostsFromWeibo')
-      .addItem('📤 Send Approved Replies', 'sendApprovedRepliesToWeibo')
+      .addItem('🔁 Sync Posts from Weibo (Posts)', 'syncUserPostsFromWeibo')
+      .addItem('📤 Send Approved Replies (Response Queue)', 'sendApprovedRepliesToWeibo')
       .addItem('📊 Check API Usage', 'checkWeiboApiUsage'))
     .addSeparator()
     .addItem('⚙️ Settings', 'showSettings')
@@ -200,21 +200,17 @@ function syncUserPostsFromWeibo() {
   const selectedRowIndices = [];
   const startRow = range.getRow();
   
-  // Check if we need to add weibo columns to Users sheet
+  // Get column indices - using existing user_id and user_name columns
   const headers = usersSheet.getRange(1, 1, 1, usersSheet.getLastColumn()).getValues()[0];
-  let weiboIdCol = headers.indexOf('weibo_user_id') + 1;
-  let weiboScreenNameCol = headers.indexOf('weibo_screen_name') + 1;
+  const userIdCol = headers.indexOf('user_id') + 1;
+  const userNameCol = headers.indexOf('user_name') + 1;
   let lastSyncCol = headers.indexOf('last_sync_date') + 1;
   
-  if (weiboIdCol === 0) {
-    // Add new columns
+  // Add last_sync_date column if it doesn't exist
+  if (lastSyncCol === 0) {
     const lastCol = usersSheet.getLastColumn();
-    usersSheet.getRange(1, lastCol + 1).setValue('weibo_user_id');
-    usersSheet.getRange(1, lastCol + 2).setValue('weibo_screen_name');
-    usersSheet.getRange(1, lastCol + 3).setValue('last_sync_date');
-    weiboIdCol = lastCol + 1;
-    weiboScreenNameCol = lastCol + 2;
-    lastSyncCol = lastCol + 3;
+    usersSheet.getRange(1, lastCol + 1).setValue('last_sync_date');
+    lastSyncCol = lastCol + 1;
   }
   
   let syncedUsers = 0;
@@ -234,18 +230,19 @@ function syncUserPostsFromWeibo() {
     const userName = selectedData[i][1];
     const rowIndex = startRow + i;
     
-    // Get Weibo user ID if available
-    const weiboUserId = usersSheet.getRange(rowIndex, weiboIdCol).getValue();
-    const weiboScreenName = usersSheet.getRange(rowIndex, weiboScreenNameCol).getValue();
+    // Use user_id as weibo_user_id and user_name as weibo_screen_name
+    const weiboUserId = userId;  // Assuming user_id is the Weibo user ID
+    const weiboScreenName = userName;  // Assuming user_name is the Weibo screen name
     
     if (!weiboUserId && !weiboScreenName) {
-      errors.push(`${userName}: No Weibo ID or screen name`);
+      errors.push(`${userName}: No user ID or name`);
       continue;
     }
     
     try {
-      // Build request parameters
-      const params = weiboUserId ? `uid=${weiboUserId}` : `screen_name=${weiboScreenName}`;
+      // Build request parameters - try user_id first (if numeric), otherwise use screen_name
+      const isNumericId = !isNaN(weiboUserId);
+      const params = isNumericId ? `uid=${weiboUserId}` : `screen_name=${weiboScreenName}`;
       const endpoint = `/2/statuses/user_timeline.json?${params}&count=50`;
       
       const result = makeWeiboRequest(endpoint);
