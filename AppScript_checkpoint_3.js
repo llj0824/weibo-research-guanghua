@@ -46,6 +46,11 @@ function getWeiboAppSecret() {
 function getWeiboService() {
   // Note: This requires adding the OAuth2 library to your Apps Script project
   // Library ID: 1B7FSrk5Zi6L1rSxxTDgDEUsPzlukDsi4KGuTMorsTQHhGBzBkMun4iDF
+  
+  // Get the script ID for building redirect URI
+  const scriptId = ScriptApp.getScriptId();
+  const redirectUri = `https://script.google.com/macros/d/${scriptId}/usercallback`;
+  
   return OAuth2.createService('Weibo')
     .setAuthorizationBaseUrl(WEIBO_AUTH_URL)
     .setTokenUrl(WEIBO_TOKEN_URL)
@@ -55,6 +60,7 @@ function getWeiboService() {
     .setPropertyStore(PropertiesService.getUserProperties())
     .setScope('all')
     .setParam('response_type', 'code')
+    .setParam('redirect_uri', redirectUri)
     .setParam('access_type', 'offline')
     .setParam('approval_prompt', 'force');
 }
@@ -95,11 +101,20 @@ function authorizeWeibo() {
     SpreadsheetApp.getUi().alert('✅ Already authorized with Weibo!');
   } else {
     const authorizationUrl = service.getAuthorizationUrl();
-    const template = HtmlService.createTemplate('Click <a href="<?= authorizationUrl ?>" target="_blank">here</a> to authorize access to Weibo.');
+    
+    // Debug: Log the authorization URL to see the exact redirect_uri
+    console.log('Authorization URL:', authorizationUrl);
+    const scriptId = ScriptApp.getScriptId();
+    console.log('Script ID:', scriptId);
+    console.log('Expected redirect URI:', `https://script.google.com/macros/d/${scriptId}/usercallback`);
+    
+    const template = HtmlService.createTemplate('Click <a href="<?= authorizationUrl ?>" target="_blank">here</a> to authorize access to Weibo.<br><br>Debug info:<br>Script ID: <?= scriptId ?><br>Expected Redirect URI: <?= redirectUri ?>');
     template.authorizationUrl = authorizationUrl;
+    template.scriptId = scriptId;
+    template.redirectUri = `https://script.google.com/macros/d/${scriptId}/usercallback`;
     const htmlOutput = template.evaluate()
-      .setWidth(400)
-      .setHeight(200);
+      .setWidth(600)
+      .setHeight(300);
     SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'Authorize Weibo Access');
   }
 }
