@@ -89,3 +89,4 @@ Google Sheets: https://docs.google.com/spreadsheets/d/1m1H2-zutyutnAX3_Cf0J13EVj
 - **API Restrictions**: New apps have limited API access initially (150 requests/hour)
 - **Content Policies**: Ensure your app complies with Weibo's content guidelines
 - **Support**: Contact weibo_app@vip.sina.com if you encounter issues
+**
