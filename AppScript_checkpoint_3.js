@@ -62,7 +62,16 @@ function getWeiboService() {
     .setParam('response_type', 'code')
     .setParam('redirect_uri', redirectUri)
     .setParam('access_type', 'offline')
-    .setParam('approval_prompt', 'force');
+    .setParam('approval_prompt', 'force')
+    .setTokenHeaders({
+      'Content-Type': 'application/x-www-form-urlencoded'
+    })
+    .setGrantType('authorization_code')
+    .setTokenPayloadHandler(function(payload) {
+      // Increase timeout for token request
+      payload.timeout = 60000; // 60 seconds
+      return payload;
+    });
 }
 
 // OAuth callback
