@@ -45,9 +45,6 @@ Google Sheets: https://docs.google.com/spreadsheets/d/1m1H2-zutyutnAX3_Cf0J13EVj
 - **内容政策**：确保应用符合微博内容规范
 - **支持**：遇到问题联系 weibo_app@vip.sina.com
 
-需要我继续提供Google Apps Script配置的说明吗？或者对这些步骤有任何疑问？
-
-
 * 
 
 ### Step-by-Step Weibo Developer Account Setup
@@ -92,5 +89,3 @@ Google Sheets: https://docs.google.com/spreadsheets/d/1m1H2-zutyutnAX3_Cf0J13EVj
 - **API Restrictions**: New apps have limited API access initially (150 requests/hour)
 - **Content Policies**: Ensure your app complies with Weibo's content guidelines
 - **Support**: Contact weibo_app@vip.sina.com if you encounter issues
-
-Would you like me to provide instructions for the next steps (configuring Google Apps Script) or any clarification on these steps?
