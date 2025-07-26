@@ -816,7 +816,17 @@ function testConnections() {
   try {
     const service = getWeiboService();
     if (service.hasAccess()) {
-      results.push('✅ Weibo API: Authorized');
+      // Try to make an actual API call to verify the connection works
+      try {
+        const testResult = makeWeiboRequest('/2/account/rate_limit_status.json');
+        if (testResult && testResult.remaining_ip_hits !== undefined) {
+          results.push(`✅ Weibo API: Connected (${testResult.remaining_ip_hits} requests remaining)`);
+        } else {
+          results.push('❌ Weibo API: Authorized but API call failed');
+        }
+      } catch (apiError) {
+        results.push('❌ Weibo API: Authorized but cannot connect - ' + apiError.toString());
+      }
     } else {
       results.push('⚠️ Weibo API: Not authorized');
     }
