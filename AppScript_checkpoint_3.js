@@ -131,19 +131,22 @@ function authorizeWeibo() {
 // Rate limiting helper
 function checkRateLimit() {
   const cache = CacheService.getScriptCache();
-  const hourKey = 'weibo_hour_' + new Date().getHours();
-  const requestCount = cache.get(hourKey) || '0';
+  const hourKey = 'weibo_rate_limit';
+  const requestCount = parseInt(cache.get(hourKey)) || 0;
   
-  if (parseInt(requestCount) >= WEIBO_RATE_LIMIT) {
-    throw new Error(`Rate limit exceeded: ${WEIBO_RATE_LIMIT} requests per hour`);
+  console.log(`Current API usage: ${requestCount}/${WEIBO_RATE_LIMIT} requests this hour`);
+  
+  if (requestCount >= WEIBO_RATE_LIMIT) {
+    throw new Error('API10023: Rate limit exceeded. Please wait until next hour.');
   }
   
-  cache.put(hourKey, (parseInt(requestCount) + 1).toString(), 3600); // 1 hour
-  return parseInt(requestCount) + 1;
+  // Update count with 1 hour expiry
+  cache.put(hourKey, (requestCount + 1).toString(), 3600);
+  return requestCount + 1;
 }
 
 // Make Weibo API request with error handling
-function makeWeiboRequest(endpoint, method = 'GET', payload = null) {
+function makeWeiboRequest(endpoint, method = 'GET', payload = null, captureLogsArray = null) {
   const service = getWeiboService();
   if (!service.hasAccess()) {
     throw new Error('Not authorized with Weibo. Please authorize first.');
@@ -155,27 +158,75 @@ function makeWeiboRequest(endpoint, method = 'GET', payload = null) {
   const options = {
     method: method,
     headers: {
-      'Authorization': 'OAuth2 ' + service.getAccessToken()
+      'Authorization': 'Bearer ' + service.getAccessToken(), // Changed to Bearer
+      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
     },
     muteHttpExceptions: true
   };
   
   if (payload && method === 'POST') {
-    options.payload = payload;
+    // Convert payload to URL-encoded format for Weibo API
+    const formData = [];
+    for (let key in payload) {
+      formData.push(encodeURIComponent(key) + '=' + encodeURIComponent(payload[key]));
+    }
+    options.payload = formData.join('&');
+  }
+  
+  // Log the full request details
+  const logRequest = (msg) => {
+    console.log(msg);
+    if (captureLogsArray) captureLogsArray.push(msg);
+  };
+  
+  logRequest('=== WEIBO API REQUEST ===');
+  logRequest('URL: ' + WEIBO_API_BASE + endpoint);
+  logRequest('Method: ' + method);
+  logRequest('Headers: ' + JSON.stringify({
+    ...options.headers,
+    'Authorization': 'Bearer ' + service.getAccessToken().slice(0, 5) + '...' // Mask token
+  }));
+  if (payload) {
+    logRequest('Payload (original): ' + JSON.stringify(payload));
+    logRequest('Payload (encoded): ' + options.payload);
   }
   
   try {
     const response = UrlFetchApp.fetch(WEIBO_API_BASE + endpoint, options);
     const responseCode = response.getResponseCode();
     const responseText = response.getContentText();
+    const responseHeaders = response.getHeaders();
+    
+    // Log the full response details
+    logRequest('=== WEIBO API RESPONSE ===');
+    logRequest('Status Code: ' + responseCode);
+    logRequest('Response Headers: ' + JSON.stringify(responseHeaders));
+    logRequest('Response Body: ' + responseText);
     
     if (responseCode === 200) {
-      return JSON.parse(responseText);
-    } else if (responseCode === 429) {
-      throw new Error('Rate limit exceeded. Please try again later.');
+      const result = JSON.parse(responseText);
+      logRequest('=== WEIBO API SUCCESS ===');
+      logRequest('Response: ' + JSON.stringify(result));
+      return result;
     } else {
-      console.error('Weibo API Error:', responseCode, responseText);
-      throw new Error(`Weibo API Error: ${responseCode} - ${responseText}`);
+      // Parse error response
+      let errorData;
+      try {
+        errorData = JSON.parse(responseText);
+      } catch (e) {
+        errorData = { error: responseText, error_code: 'UNKNOWN' };
+      }
+      
+      const errorMsg = `Weibo API Error ${errorData.error_code}: ${errorData.error}`;
+      logRequest('=== WEIBO API ERROR ===');
+      logRequest('Error Details: ' + JSON.stringify(errorData));
+      
+      // Special handling for rate limit
+      if (errorData.error_code === 10023 || responseCode === 429) {
+        throw new Error('API10023: Rate limit exceeded');
+      }
+      
+      throw new Error(errorMsg);
     }
   } catch (error) {
     console.error('Request failed:', error);
@@ -243,16 +294,31 @@ function syncUserPostsFromWeibo() {
       // Build request parameters - try user_id first (if numeric), otherwise use screen_name
       const isNumericId = !isNaN(weiboUserId);
       const params = isNumericId ? `uid=${weiboUserId}` : `screen_name=${weiboScreenName}`;
-      const endpoint = `/2/statuses/user_timeline.json?${params}&count=50`;
+      const endpoint = `/2/statuses/user_timeline.json?${params}&count=10`;
+      
+      // Debug logging
+      console.log(`Syncing posts for user: ${userName} (ID: ${weiboUserId})`);
+      console.log(`API endpoint: ${endpoint}`);
       
       const result = makeWeiboRequest(endpoint);
       
+      console.log(`API response:`, JSON.stringify(result));
+      
+      // Check for API errors
+      if (result.error_code === 21335) {
+        // This error means we can only fetch posts for the authenticated user
+        errors.push(`${userName}: Can only sync posts for the authenticated Weibo account (API limitation)`);
+        continue;
+      }
+      
       if (result.statuses && result.statuses.length > 0) {
+        console.log(`Found ${result.statuses.length} posts for user ${userName}`);
         const newPosts = [];
         
         for (const status of result.statuses) {
           // Skip if we already have this post
           if (existingPostIds.has(String(status.id))) {
+            console.log(`Skipping existing post: ${status.id}`);
             continue;
           }
           
@@ -289,9 +355,14 @@ function syncUserPostsFromWeibo() {
         // Update sync date
         usersSheet.getRange(rowIndex, lastSyncCol).setValue(new Date());
         syncedUsers++;
+      } else {
+        console.log(`No posts found for user ${userName}`);
+        console.log(`Full API response:`, JSON.stringify(result));
+        errors.push(`${userName}: No posts returned from API`);
       }
       
     } catch (error) {
+      console.error(`Error syncing ${userName}:`, error);
       errors.push(`${userName}: ${error.toString()}`);
     }
   }
@@ -315,6 +386,11 @@ function syncUserPostsFromWeibo() {
 function sendApprovedRepliesToWeibo() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet();
   const queueSheet = sheet.getSheetByName('Response Queue');
+  
+  // Store all logs to show in popup
+  const fullLogs = [];
+  fullLogs.push('=== STARTING SEND APPROVED REPLIES TO WEIBO ===');
+  console.log('=== STARTING SEND APPROVED REPLIES TO WEIBO ===');
   
   // Check if we need to add Weibo columns
   const headers = queueSheet.getRange(1, 1, 1, queueSheet.getLastColumn()).getValues()[0];
@@ -340,69 +416,119 @@ function sendApprovedRepliesToWeibo() {
   const errors = [];
   
   // Process approved replies that haven't been sent
+  fullLogs.push(`\nTotal rows to process: ${data.length - 1}`);
+  console.log(`Total rows to process: ${data.length - 1}`);
+  
   for (let i = 1; i < data.length; i++) {
-    const approved = data[i][9]; // approved column
-    const sentDate = data[i][11]; // sent_date column
+    const approved = data[i][10]; // approved column (index 10)
+    const sentDate = data[i][12]; // sent_date column (index 12)
     const weiboStatus = queueSheet.getRange(i + 1, weiboSendStatusCol).getValue();
+    
+    fullLogs.push(`\nRow ${i + 1}: approved="${approved}", sentDate="${sentDate}", weiboStatus="${weiboStatus}"`);
+    console.log(`Row ${i + 1}: approved="${approved}", sentDate="${sentDate}", weiboStatus="${weiboStatus}"`);
     
     // Skip if not approved, already sent, or already processed
     if (approved !== 'YES' || sentDate || weiboStatus === 'success') {
+      fullLogs.push(`Skipping row ${i + 1}: Not approved or already processed`);
       continue;
     }
     
-    const postId = data[i][4]; // triggering_post_id
-    const responseText = data[i][10] || data[i][8]; // final_response or generated_response
-    const userName = data[i][2];
+    const postId = data[i][4]; // triggering_post_id (column 5)
+    const responseText = data[i][11] || data[i][9]; // final_response (column 12) or generated_response (column 10)
+    const userName = data[i][2]; // user_name (column 3)
     
     if (!postId || !responseText) {
       errors.push(`Row ${i + 1}: Missing post ID or response text`);
       continue;
     }
     
+    fullLogs.push(`\n--- Processing Row ${i + 1} ---`);
+    fullLogs.push(`User: ${userName}`);
+    fullLogs.push(`Post ID: ${postId}`);
+    fullLogs.push(`Original Response: ${responseText}`);
+    console.log(`\n--- Processing Row ${i + 1} ---`);
+    console.log(`User: ${userName}`);
+    console.log(`Post ID: ${postId}`);
+    console.log(`Original Response: ${responseText}`);
+    
     try {
+      // Truncate to 140 characters for Weibo limit
+      const truncatedComment = responseText.substring(0, 140);
+      fullLogs.push(`Truncated Comment (${truncatedComment.length} chars): ${truncatedComment}`);
+      console.log(`Truncated Comment (${truncatedComment.length} chars): ${truncatedComment}`);
+      
       // Send comment to Weibo
       const payload = {
-        'comment': responseText.substring(0, 140), // Weibo limit
+        'comment': truncatedComment,
         'id': postId
       };
       
-      const result = makeWeiboRequest('/2/comments/create.json', 'POST', payload);
+      fullLogs.push('Sending comment to Weibo...');
+      console.log('Sending comment to Weibo...');
+      const result = makeWeiboRequest('/2/comments/create.json', 'POST', payload, fullLogs);
       
       if (result && result.id) {
         // Success - update sheet
+        fullLogs.push(`✅ SUCCESS! Comment ID: ${result.id}`);
+        console.log(`✅ SUCCESS! Comment ID: ${result.id}`);
         queueSheet.getRange(i + 1, weiboCommentIdCol).setValue(result.id);
         queueSheet.getRange(i + 1, weiboSendStatusCol).setValue('success');
         queueSheet.getRange(i + 1, 12).setValue(new Date()); // sent_date
         sentCount++;
+        
+        // Add delay to avoid rate limits (1.5 seconds between requests)
+        Utilities.sleep(1500);
       }
       
     } catch (error) {
       // Error - log it
+      fullLogs.push(`❌ ERROR for ${userName}: ${error.toString()}`);
+      console.error(`❌ ERROR for ${userName}:`, error.toString());
       queueSheet.getRange(i + 1, weiboSendStatusCol).setValue('failed');
-      queueSheet.getRange(i + 1, weiboErrorCol).setValue(error.toString());
+      queueSheet.getRange(i + 1, weiboErrorCol).setValue(error.toString().substring(0, 500)); // Truncate long errors
       errors.push(`${userName}: ${error.toString()}`);
       errorCount++;
       
       // Stop if we hit rate limit
-      if (error.toString().includes('Rate limit')) {
+      if (error.toString().includes('API10023')) {
+        fullLogs.push('⚠️ Rate limit hit - stopping processing');
+        console.error('⚠️ Rate limit hit - stopping processing');
+        errors.push('Processing stopped due to rate limit');
         break;
       }
     }
   }
   
-  // Show summary
-  let message = `✅ Send complete!\n\n`;
-  message += `Replies sent: ${sentCount}\n`;
-  message += `Errors: ${errorCount}\n`;
+  // Show summary with detailed logs
+  fullLogs.push('\n=== SEND REPLIES SUMMARY ===');
+  fullLogs.push(`Total sent: ${sentCount}`);
+  fullLogs.push(`Total failed: ${errorCount}`);
+  fullLogs.push(`Errors: ${JSON.stringify(errors)}`);
   
-  if (errors.length > 0) {
-    message += `\n⚠️ Error details:\n${errors.slice(0, 5).join('\n')}`;
-    if (errors.length > 5) {
-      message += `\n... and ${errors.length - 5} more errors`;
-    }
-  }
+  console.log('\n=== SEND REPLIES SUMMARY ===');
+  console.log(`Total sent: ${sentCount}`);
+  console.log(`Total failed: ${errorCount}`);
+  console.log(`Errors:`, errors);
   
-  SpreadsheetApp.getUi().alert(message);
+  // Create HTML output with full logs
+  const htmlContent = `
+    <div style="font-family: monospace; white-space: pre-wrap; max-height: 600px; overflow-y: auto;">
+      <h3>📤 Send Results</h3>
+      <p>✅ Sent successfully: ${sentCount}</p>
+      <p>❌ Failed: ${errorCount}</p>
+      ${errors.length > 0 ? '<h4>⚠️ Errors:</h4><p>' + errors.join('\n') + '</p>' : ''}
+      <h4>📋 Full Logs:</h4>
+      <div style="background-color: #f5f5f5; padding: 10px; border: 1px solid #ddd; max-height: 400px; overflow-y: auto;">
+        ${fullLogs.join('\n').replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+      </div>
+    </div>
+  `;
+  
+  const htmlOutput = HtmlService.createHtmlOutput(htmlContent)
+    .setWidth(800)
+    .setHeight(600);
+    
+  SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'Weibo Send Results');
 }
 
 // Check API usage
