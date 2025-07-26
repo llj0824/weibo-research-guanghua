@@ -476,9 +476,11 @@ function sendApprovedRepliesToWeibo() {
       console.log(`Truncated Comment (${truncatedComment.length} chars): ${truncatedComment}`);
       
       // Send comment to Weibo
+      // Try to get the real IP (though Google Apps Script doesn't expose this easily)
       const payload = {
         'comment': truncatedComment,
         'id': postId
+        // Note: Removing 'rip' parameter as it might need to match actual request IP
       };
       
       fullLogs.push('Sending comment to Weibo...');
