@@ -167,6 +167,8 @@ function makeWeiboRequest(endpoint, method = 'GET', payload = null, captureLogsA
   if (payload && method === 'POST') {
     // Convert payload to URL-encoded format for Weibo API
     const formData = [];
+    // IMPORTANT: Add access_token to the payload for POST requests
+    formData.push('access_token=' + encodeURIComponent(service.getAccessToken()));
     for (let key in payload) {
       formData.push(encodeURIComponent(key) + '=' + encodeURIComponent(payload[key]));
     }
@@ -387,6 +389,13 @@ function sendApprovedRepliesToWeibo() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet();
   const queueSheet = sheet.getSheetByName('Response Queue');
   
+  // Get the selected range
+  const range = queueSheet.getActiveRange();
+  if (!range) {
+    SpreadsheetApp.getUi().alert('⚠️ Please select rows in the Response Queue sheet first.');
+    return;
+  }
+  
   // Store all logs to show in popup
   const fullLogs = [];
   fullLogs.push('=== STARTING SEND APPROVED REPLIES TO WEIBO ===');
@@ -409,44 +418,53 @@ function sendApprovedRepliesToWeibo() {
     weiboErrorCol = lastCol + 3;
   }
   
-  // Get all data
-  const data = queueSheet.getDataRange().getValues();
+  // Get selected data
+  const selectedRange = range;
+  const startRow = selectedRange.getRow();
+  const numRows = selectedRange.getNumRows();
+  const selectedData = selectedRange.getValues();
+  
+  // Get all columns data for the selected rows (need full row data)
+  const fullRowData = queueSheet.getRange(startRow, 1, numRows, queueSheet.getLastColumn()).getValues();
+  
   let sentCount = 0;
   let errorCount = 0;
   const errors = [];
   
-  // Process approved replies that haven't been sent
-  fullLogs.push(`\nTotal rows to process: ${data.length - 1}`);
-  console.log(`Total rows to process: ${data.length - 1}`);
+  // Process selected rows only
+  fullLogs.push(`\nProcessing ${numRows} selected rows (starting from row ${startRow})`);
+  console.log(`Processing ${numRows} selected rows (starting from row ${startRow})`);
   
-  for (let i = 1; i < data.length; i++) {
-    const approved = data[i][10]; // approved column (index 10)
-    const sentDate = data[i][12]; // sent_date column (index 12)
-    const weiboStatus = queueSheet.getRange(i + 1, weiboSendStatusCol).getValue();
+  for (let i = 0; i < fullRowData.length; i++) {
+    const rowNum = startRow + i; // Actual row number in sheet
+    const rowData = fullRowData[i];
+    const approved = rowData[10]; // approved column (index 10)
+    const sentDate = rowData[12]; // sent_date column (index 12)
+    const weiboStatus = queueSheet.getRange(rowNum, weiboSendStatusCol).getValue();
     
-    fullLogs.push(`\nRow ${i + 1}: approved="${approved}", sentDate="${sentDate}", weiboStatus="${weiboStatus}"`);
-    console.log(`Row ${i + 1}: approved="${approved}", sentDate="${sentDate}", weiboStatus="${weiboStatus}"`);
+    fullLogs.push(`\nRow ${rowNum}: approved="${approved}", sentDate="${sentDate}", weiboStatus="${weiboStatus}"`);
+    console.log(`Row ${rowNum}: approved="${approved}", sentDate="${sentDate}", weiboStatus="${weiboStatus}"`);
     
     // Skip if not approved, already sent, or already processed
     if (approved !== 'YES' || sentDate || weiboStatus === 'success') {
-      fullLogs.push(`Skipping row ${i + 1}: Not approved or already processed`);
+      fullLogs.push(`Skipping row ${rowNum}: Not approved or already processed`);
       continue;
     }
     
-    const postId = data[i][4]; // triggering_post_id (column 5)
-    const responseText = data[i][11] || data[i][9]; // final_response (column 12) or generated_response (column 10)
-    const userName = data[i][2]; // user_name (column 3)
+    const postId = rowData[4]; // triggering_post_id (column 5)
+    const responseText = rowData[11] || rowData[9]; // final_response (column 12) or generated_response (column 10)
+    const userName = rowData[2]; // user_name (column 3)
     
     if (!postId || !responseText) {
-      errors.push(`Row ${i + 1}: Missing post ID or response text`);
+      errors.push(`Row ${rowNum}: Missing post ID or response text`);
       continue;
     }
     
-    fullLogs.push(`\n--- Processing Row ${i + 1} ---`);
+    fullLogs.push(`\n--- Processing Row ${rowNum} ---`);
     fullLogs.push(`User: ${userName}`);
     fullLogs.push(`Post ID: ${postId}`);
     fullLogs.push(`Original Response: ${responseText}`);
-    console.log(`\n--- Processing Row ${i + 1} ---`);
+    console.log(`\n--- Processing Row ${rowNum} ---`);
     console.log(`User: ${userName}`);
     console.log(`Post ID: ${postId}`);
     console.log(`Original Response: ${responseText}`);
@@ -471,9 +489,9 @@ function sendApprovedRepliesToWeibo() {
         // Success - update sheet
         fullLogs.push(`✅ SUCCESS! Comment ID: ${result.id}`);
         console.log(`✅ SUCCESS! Comment ID: ${result.id}`);
-        queueSheet.getRange(i + 1, weiboCommentIdCol).setValue(result.id);
-        queueSheet.getRange(i + 1, weiboSendStatusCol).setValue('success');
-        queueSheet.getRange(i + 1, 12).setValue(new Date()); // sent_date
+        queueSheet.getRange(rowNum, weiboCommentIdCol).setValue(result.id);
+        queueSheet.getRange(rowNum, weiboSendStatusCol).setValue('success');
+        queueSheet.getRange(rowNum, 13).setValue(new Date()); // sent_date (column 13)
         sentCount++;
         
         // Add delay to avoid rate limits (1.5 seconds between requests)
@@ -484,8 +502,8 @@ function sendApprovedRepliesToWeibo() {
       // Error - log it
       fullLogs.push(`❌ ERROR for ${userName}: ${error.toString()}`);
       console.error(`❌ ERROR for ${userName}:`, error.toString());
-      queueSheet.getRange(i + 1, weiboSendStatusCol).setValue('failed');
-      queueSheet.getRange(i + 1, weiboErrorCol).setValue(error.toString().substring(0, 500)); // Truncate long errors
+      queueSheet.getRange(rowNum, weiboSendStatusCol).setValue('failed');
+      queueSheet.getRange(rowNum, weiboErrorCol).setValue(error.toString().substring(0, 500)); // Truncate long errors
       errors.push(`${userName}: ${error.toString()}`);
       errorCount++;
       
