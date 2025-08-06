@@ -1,0 +1,444 @@
+{
+  "sheets": {
+    "users": {
+      "name": "用户管理",
+      "columns": [
+        {
+          "field": "user_id",
+          "title": "用户ID",
+          "type": "text",
+          "required": true,
+          "description": "微博用户ID"
+        },
+        {
+          "field": "username",
+          "title": "用户名",
+          "type": "text",
+          "required": true
+        },
+        {
+          "field": "group_id",
+          "title": "实验组",
+          "type": "select",
+          "options": [
+            { "value": 0, "label": "Control - 对照组" },
+            { "value": 1, "label": "Group 1 - AI扮演人类(无历史)" },
+            { "value": 2, "label": "Group 2 - AI扮演人类(有历史)" },
+            { "value": 3, "label": "Group 3 - AI声明身份(无历史)" },
+            { "value": 4, "label": "Group 4 - AI声明身份(有历史)" }
+          ],
+          "required": true
+        },
+        {
+          "field": "status",
+          "title": "状态",
+          "type": "select",
+          "options": [
+            { "value": "active", "label": "活跃" },
+            { "value": "inactive", "label": "不活跃" },
+            { "value": "excluded", "label": "已排除" }
+          ],
+          "default": "active"
+        },
+        {
+          "field": "last_processed",
+          "title": "最后处理时间",
+          "type": "datetime"
+        },
+        {
+          "field": "total_responses",
+          "title": "总回复数",
+          "type": "number",
+          "default": 0
+        },
+        {
+          "field": "notes",
+          "title": "备注",
+          "type": "text"
+        }
+      ]
+    },
+    "prompts": {
+      "name": "提示词模板",
+      "columns": [
+        {
+          "field": "prompt_id",
+          "title": "模板ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "field": "group_id",
+          "title": "适用组",
+          "type": "select",
+          "options": [
+            { "value": 1, "label": "Group 1" },
+            { "value": 2, "label": "Group 2" },
+            { "value": 3, "label": "Group 3" },
+            { "value": 4, "label": "Group 4" }
+          ],
+          "required": true
+        },
+        {
+          "field": "prompt_template",
+          "title": "提示词模板",
+          "type": "longtext",
+          "required": true,
+          "description": "支持变量: {post_content}, {user_topics}, {user_name}"
+        },
+        {
+          "field": "system_prompt",
+          "title": "系统提示词",
+          "type": "longtext",
+          "required": true
+        },
+        {
+          "field": "max_tokens",
+          "title": "最大长度",
+          "type": "number",
+          "default": 500
+        },
+        {
+          "field": "temperature",
+          "title": "温度参数",
+          "type": "number",
+          "default": 0.7
+        },
+        {
+          "field": "is_active",
+          "title": "是否启用",
+          "type": "checkbox",
+          "default": true
+        }
+      ]
+    },
+    "response_queue": {
+      "name": "回复队列",
+      "columns": [
+        {
+          "field": "response_id",
+          "title": "回复ID",
+          "type": "text",
+          "required": true,
+          "auto_generate": true
+        },
+        {
+          "field": "user_id",
+          "title": "用户ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "field": "username",
+          "title": "用户名",
+          "type": "text"
+        },
+        {
+          "field": "group_id",
+          "title": "实验组",
+          "type": "number",
+          "required": true
+        },
+        {
+          "field": "post_id",
+          "title": "原帖ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "field": "post_content",
+          "title": "原帖内容",
+          "type": "longtext",
+          "required": true
+        },
+        {
+          "field": "post_link",
+          "title": "原帖链接",
+          "type": "url"
+        },
+        {
+          "field": "response_content",
+          "title": "回复内容",
+          "type": "longtext",
+          "required": true
+        },
+        {
+          "field": "user_context",
+          "title": "用户历史",
+          "type": "json",
+          "description": "Groups 2 & 4 only"
+        },
+        {
+          "field": "approval_status",
+          "title": "审核状态",
+          "type": "select",
+          "options": [
+            { "value": "pending", "label": "待审核" },
+            { "value": "approved", "label": "已批准" },
+            { "value": "rejected", "label": "已拒绝" },
+            { "value": "edited", "label": "已编辑" }
+          ],
+          "default": "pending"
+        },
+        {
+          "field": "posting_status",
+          "title": "发布状态",
+          "type": "select",
+          "options": [
+            { "value": "not_posted", "label": "未发布" },
+            { "value": "posted", "label": "已发布" },
+            { "value": "failed", "label": "发布失败" }
+          ],
+          "default": "not_posted"
+        },
+        {
+          "field": "weibo_response_id",
+          "title": "微博回复ID",
+          "type": "text",
+          "description": "发布后的微博ID"
+        },
+        {
+          "field": "generated_at",
+          "title": "生成时间",
+          "type": "datetime",
+          "required": true,
+          "auto_now_add": true
+        },
+        {
+          "field": "posted_at",
+          "title": "发布时间",
+          "type": "datetime"
+        },
+        {
+          "field": "error_message",
+          "title": "错误信息",
+          "type": "text"
+        },
+        {
+          "field": "model_used",
+          "title": "使用模型",
+          "type": "text",
+          "default": "deepseek-chat"
+        }
+      ]
+    },
+    "posts": {
+      "name": "微博帖子库",
+      "columns": [
+        {
+          "field": "post_id",
+          "title": "帖子ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "field": "user_id",
+          "title": "用户ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "field": "content",
+          "title": "内容",
+          "type": "longtext",
+          "required": true
+        },
+        {
+          "field": "created_at",
+          "title": "发布时间",
+          "type": "datetime",
+          "required": true
+        },
+        {
+          "field": "reposts_count",
+          "title": "转发数",
+          "type": "number",
+          "default": 0
+        },
+        {
+          "field": "comments_count",
+          "title": "评论数",
+          "type": "number",
+          "default": 0
+        },
+        {
+          "field": "attitudes_count",
+          "title": "点赞数",
+          "type": "number",
+          "default": 0
+        },
+        {
+          "field": "url",
+          "title": "链接",
+          "type": "url"
+        },
+        {
+          "field": "is_trigger",
+          "title": "已作为触发帖",
+          "type": "checkbox",
+          "default": false
+        },
+        {
+          "field": "last_updated",
+          "title": "最后更新",
+          "type": "datetime",
+          "auto_now": true
+        }
+      ]
+    },
+    "analytics": {
+      "name": "数据分析",
+      "columns": [
+        {
+          "field": "date",
+          "title": "日期",
+          "type": "date",
+          "required": true
+        },
+        {
+          "field": "group_id",
+          "title": "实验组",
+          "type": "number",
+          "required": true
+        },
+        {
+          "field": "responses_generated",
+          "title": "生成回复数",
+          "type": "number",
+          "default": 0
+        },
+        {
+          "field": "responses_approved",
+          "title": "批准回复数",
+          "type": "number",
+          "default": 0
+        },
+        {
+          "field": "responses_posted",
+          "title": "发布回复数",
+          "type": "number",
+          "default": 0
+        },
+        {
+          "field": "api_calls",
+          "title": "API调用次数",
+          "type": "number",
+          "default": 0
+        },
+        {
+          "field": "api_cost",
+          "title": "API成本(元)",
+          "type": "number",
+          "default": 0
+        },
+        {
+          "field": "average_response_length",
+          "title": "平均回复长度",
+          "type": "number"
+        },
+        {
+          "field": "error_count",
+          "title": "错误次数",
+          "type": "number",
+          "default": 0
+        }
+      ]
+    },
+    "settings": {
+      "name": "系统设置",
+      "columns": [
+        {
+          "field": "key",
+          "title": "配置项",
+          "type": "text",
+          "required": true
+        },
+        {
+          "field": "value",
+          "title": "配置值",
+          "type": "longtext",
+          "required": true
+        },
+        {
+          "field": "description",
+          "title": "说明",
+          "type": "text"
+        },
+        {
+          "field": "updated_at",
+          "title": "更新时间",
+          "type": "datetime",
+          "auto_now": true
+        }
+      ],
+      "default_data": [
+        {
+          "key": "deepseek_api_key",
+          "value": "",
+          "description": "DeepSeek API密钥"
+        },
+        {
+          "key": "weibo_access_token",
+          "value": "",
+          "description": "微博API访问令牌"
+        },
+        {
+          "key": "tencent_cloud_secret_id",
+          "value": "",
+          "description": "腾讯云SecretId"
+        },
+        {
+          "key": "tencent_cloud_secret_key",
+          "value": "",
+          "description": "腾讯云SecretKey"
+        },
+        {
+          "key": "batch_size",
+          "value": "10",
+          "description": "批处理大小"
+        },
+        {
+          "key": "rate_limit_delay",
+          "value": "1000",
+          "description": "API调用间隔(毫秒)"
+        },
+        {
+          "key": "auto_approve_threshold",
+          "value": "0.8",
+          "description": "自动批准阈值"
+        }
+      ]
+    }
+  },
+  "permissions": {
+    "users": ["read", "write"],
+    "prompts": ["read", "write"],
+    "response_queue": ["read", "write"],
+    "posts": ["read", "write"],
+    "analytics": ["read"],
+    "settings": ["read", "write"]
+  },
+  "automation": {
+    "triggers": [
+      {
+        "name": "新用户添加",
+        "sheet": "users",
+        "event": "row_added",
+        "action": "initialize_user_data"
+      },
+      {
+        "name": "回复审核",
+        "sheet": "response_queue",
+        "event": "cell_updated",
+        "condition": "approval_status == 'approved'",
+        "action": "queue_for_posting"
+      },
+      {
+        "name": "每日统计",
+        "schedule": "daily",
+        "time": "00:00",
+        "action": "generate_daily_analytics"
+      }
+    ]
+  }
+}
